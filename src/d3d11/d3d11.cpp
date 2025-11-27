@@ -487,7 +487,7 @@ bool D3D11GraphicsDevice::Initialize()
 		return false;
 	}
 
-	immediateContext = MakePrismObj<D3D11CommandList>(ctx, CommandListType::Immediate);
+	immediateContext = MakePrismObj<D3D11CommandList>(std::move(ctx), CommandListType::Immediate);
 
 	return true;
 }
@@ -533,7 +533,7 @@ PrismObj<Buffer> D3D11GraphicsDevice::CreateBuffer(const BufferDesc& desc)
 		return {};
 	}
 
-	return MakePrismObj<D3D11Buffer>(desc, d3dBuffer);
+	return MakePrismObj<D3D11Buffer>(desc, std::move(d3dBuffer));
 }
 
 PrismObj<Texture1D> D3D11GraphicsDevice::CreateTexture1D(const Texture1DDesc& desc)
@@ -555,7 +555,7 @@ PrismObj<Texture1D> D3D11GraphicsDevice::CreateTexture1D(const Texture1DDesc& de
 		return {};
 	}
 
-	return MakePrismObj<D3D11Texture1D>(desc, d3dTexture);
+	return MakePrismObj<D3D11Texture1D>(desc, std::move(d3dTexture));
 }
 
 PrismObj<Texture2D> D3D11GraphicsDevice::CreateTexture2D(const Texture2DDesc& desc)
@@ -580,7 +580,7 @@ PrismObj<Texture2D> D3D11GraphicsDevice::CreateTexture2D(const Texture2DDesc& de
 		return {};
 	}
 
-	return MakePrismObj<D3D11Texture2D>(desc, d3dTexture);
+	return MakePrismObj<D3D11Texture2D>(desc, std::move(d3dTexture));
 }
 
 PrismObj<Texture3D> D3D11GraphicsDevice::CreateTexture3D(const Texture3DDesc& desc)
@@ -603,7 +603,7 @@ PrismObj<Texture3D> D3D11GraphicsDevice::CreateTexture3D(const Texture3DDesc& de
 		return {};
 	}
 
-	return MakePrismObj<D3D11Texture3D>(desc, d3dTexture);
+	return MakePrismObj<D3D11Texture3D>(desc, std::move(d3dTexture));
 }
 
 PrismObj<CommandList> D3D11GraphicsDevice::CreateCommandList()
@@ -623,7 +623,7 @@ PrismObj<CommandList> D3D11GraphicsDevice::CreateCommandList()
 		return {};
 	}
 
-	return MakePrismObj<D3D11CommandList>(deferredContext4, CommandListType::Deferred);
+	return MakePrismObj<D3D11CommandList>(std::move(deferredContext4), CommandListType::Deferred);
 }
 
 PrismObj<RenderTargetView> D3D11GraphicsDevice::CreateRenderTargetView(Resource* resource, const RenderTargetViewDesc& desc)
@@ -717,7 +717,7 @@ PrismObj<RenderTargetView> D3D11GraphicsDevice::CreateRenderTargetView(Resource*
 		return {};
 	}
 
-	return MakePrismObj<D3D11RenderTargetView>(desc, rtv);
+	return MakePrismObj<D3D11RenderTargetView>(desc, std::move(rtv));
 }
 
 PrismObj<ShaderResourceView> D3D11GraphicsDevice::CreateShaderResourceView(Resource* resource, const ShaderResourceViewDesc& desc)
@@ -834,7 +834,7 @@ PrismObj<ShaderResourceView> D3D11GraphicsDevice::CreateShaderResourceView(Resou
 		return {};
 	}
 
-	return MakePrismObj<D3D11ShaderResourceView>(desc, srv);
+	return MakePrismObj<D3D11ShaderResourceView>(desc, std::move(srv));
 }
 
 PrismObj<DepthStencilView> D3D11GraphicsDevice::CreateDepthStencilView(Resource* resource, const DepthStencilViewDesc& desc)
@@ -912,7 +912,7 @@ PrismObj<DepthStencilView> D3D11GraphicsDevice::CreateDepthStencilView(Resource*
 		return {};
 	}
 
-	return MakePrismObj<D3D11DepthStencilView>(desc, dsv);
+	return MakePrismObj<D3D11DepthStencilView>(desc, std::move(dsv));
 }
 
 PrismObj<UnorderedAccessView> D3D11GraphicsDevice::CreateUnorderedAccessView(Resource* resource, const UnorderedAccessViewDesc& desc)
@@ -996,7 +996,7 @@ PrismObj<UnorderedAccessView> D3D11GraphicsDevice::CreateUnorderedAccessView(Res
 		return {};
 	}
 
-	return MakePrismObj<D3D11UnorderedAccessView>(desc, uav);
+	return MakePrismObj<D3D11UnorderedAccessView>(desc, std::move(uav));
 }
 
 PrismObj<SamplerState> D3D11GraphicsDevice::CreateSamplerState(const SamplerDesc& desc)
@@ -1033,7 +1033,7 @@ PrismObj<SamplerState> D3D11GraphicsDevice::CreateSamplerState(const SamplerDesc
 		return {};
 	}
 
-	return MakePrismObj<D3D11SamplerState>(desc, samplerState);
+	return MakePrismObj<D3D11SamplerState>(desc, std::move(samplerState));
 }
 
 PrismObj<GraphicsPipeline> D3D11GraphicsDevice::CreateGraphicsPipeline(const GraphicsPipelineDesc& desc)

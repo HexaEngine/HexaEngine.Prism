@@ -29,7 +29,16 @@ int main()
     SDL_Window* window = SDL_CreateWindow("Test", (int)(1280 * scale), (int)(720 * scale), SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
     PrismObj<GraphicsDevice> device = GraphicsDevice::Create();
-    
+    Texture2DDesc desc = {};
+	desc.format = Format::RGBA8_UNorm;
+	desc.width = 256;
+	desc.height = 256;
+	desc.arraySize = 1;
+	desc.mipLevels = 1;
+	desc.cpuAccessFlags = CpuAccessFlags::None;
+	desc.gpuAccessFlags = GpuAccessFlags::RW;
+	desc.sampleDesc = { 1, 0 };
+    auto tex = device->CreateTexture2D(desc);
 
 	bool running = true;
     while (running)

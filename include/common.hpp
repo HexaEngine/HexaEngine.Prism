@@ -2,6 +2,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 
 #define HEXA_PRISM_NAMESPACE HexaEngine::Prism
 #define HEXA_PRISM_NAMESPACE_BEGIN namespace HexaEngine { namespace Prism {

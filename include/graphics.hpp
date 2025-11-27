@@ -122,7 +122,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		bool operator==(T* p) const noexcept { return ptr == p; }
 		bool operator!=(T* p) const noexcept { return ptr != p; }
 
-		constexpr T* Get() { return ptr; }
+		constexpr T* Get() const { return ptr; }
 
 		PrismObj<T> AddRef()
 		{
@@ -161,7 +161,8 @@ HEXA_PRISM_NAMESPACE_BEGIN
 	template <typename T, typename... TArgs>
 	[[nodiscard]] inline PrismObj<T> MakePrismObj(TArgs&&... args)
 	{
-		return PrismObj<T>(new T(std::forward<TArgs>(args)...));
+		T* obj = new T(std::forward<TArgs>(args)...); // TODO: Change to custom allocator solution.
+		return PrismObj<T>(obj, false);
 	}
 
 	class Resource : public PrismObject
@@ -211,6 +212,8 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		UA = 1 << 2,
 		DepthStencil = 1 << 3,
 		Immutable = 1 << 4,
+		RW = Read | Write,
+		All = Read | Write | UA 
 	};
 
 	struct SampleDesc
@@ -782,107 +785,61 @@ HEXA_PRISM_NAMESPACE_BEGIN
 	enum class Filter
 	{
 		MinMagMipPoint = 0,
-
 		MinMagPointMipLinear = 1,
-
 		MinPointMagLinearMipPoint = 4,
-
 		MinPointMagMipLinear = 5,
-
 		MinLinearMagMipPoint = 16,
-
 		MinLinearMagPointMipLinear = 17,
-
 		MinMagLinearMipPoint = 20,
-
 		MinMagMipLinear = 21,
-
 		Anisotropic = 85,
-
 		ComparisonMinMagMipPoint = 128,
-
 		ComparisonMinMagPointMipLinear = 129,
-
 		ComparisonMinPointMagLinearMipPoint = 132,
-
 		ComparisonMinPointMagMipLinear = 133,
-
 		ComparisonMinLinearMagMipPoint = 144,
-
 		ComparisonMinLinearMagPointMipLinear = 145,
-
 		ComparisonMinMagLinearMipPoint = 148,
-
 		ComparisonMinMagMipLinear = 149,
-
 		ComparisonAnisotropic = 213,
-
 		MinimumMinMagMipPoint = 256,
-
 		MinimumMinMagPointMipLinear = 257,
-
 		MinimumMinPointMagLinearMipPoint = 260,
-
 		MinimumMinPointMagMipLinear = 261,
-
 		MinimumMinLinearMagMipPoint = 272,
-
 		MinimumMinLinearMagPointMipLinear = 273,
-
 		MinimumMinMagLinearMipPoint = 276,
-
 		MinimumMinMagMipLinear = 277,
-
 		MinimumAnisotropic = 341,
-
 		MaximumMinMagMipPoint = 384,
-
 		MaximumMinMagPointMipLinear = 385,
-
 		MaximumMinPointMagLinearMipPoint = 388,
-
 		MaximumMinPointMagMipLinear = 389,
-
 		MaximumMinLinearMagMipPoint = 400,
-
 		MaximumMinLinearMagPointMipLinear = 401,
-
 		MaximumMinMagLinearMipPoint = 404,
-
 		MaximumMinMagMipLinear = 405,
-
 		MaximumAnisotropic = 469
 	};
 
 	enum class TextureAddressMode
 	{
 		Wrap = 1,
-
 		Mirror = 2,
-
 		Clamp = 3,
-
 		Border = 4,
-
 		MirrorOnce = 5
 	};
 
 	enum class ComparisonFunc
 	{
 		Never = 1,
-
 		Less = 2,
-
 		Equal = 3,
-
 		LessEqual = 4,
-
 		Greater = 5,
-
 		NotEqual = 6,
-
 		GreaterEqual = 7,
-
 		Always = 8
 	};
 
