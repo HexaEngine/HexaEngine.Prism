@@ -1,11 +1,35 @@
 #include "main.hpp"
+#include <graphics.hpp>
 #include <SDL3/SDL_video.h>
 #include <SDL3/SDL.h>
 
+#if HEXA_PRISM_WINDOWS
+#include <Windows.h>
+
+void HideConsole()
+{
+    ::ShowWindow(::GetConsoleWindow(), SW_HIDE);
+}
+
+#else
+void HideConsole()
+{
+}
+
+#endif
+
+using namespace HEXA_PRISM_NAMESPACE;
+
 int main()
 {
+    HideConsole();
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
-    SDL_Window* window = SDL_CreateWindow("Test", 1280, 720, SDL_WINDOW_RESIZABLE);
+
+    float scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
+    SDL_Window* window = SDL_CreateWindow("Test", (int)(1280 * scale), (int)(720 * scale), SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+
+    PrismObj<GraphicsDevice> device = GraphicsDevice::Create();
+    
 
 	bool running = true;
     while (running)
@@ -19,6 +43,8 @@ int main()
                 running = false;
             }
 		}
+
+
     }
     
     return 0;
