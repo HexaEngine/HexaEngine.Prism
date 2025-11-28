@@ -24,6 +24,8 @@ target_link_libraries(PrismStatic SDL3::SDL3)
 if(WIN32)
     target_link_libraries(PrismShared d3d11.lib dxgi.lib)
     target_link_libraries(PrismStatic d3d11.lib dxgi.lib)
+    target_compile_definitions(PrismShared PRIVATE NOMINMAX)
+    target_compile_definitions(PrismStatic PRIVATE NOMINMAX)
 endif()
 
 add_subdirectory(example)

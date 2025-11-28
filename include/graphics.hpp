@@ -3,6 +3,12 @@
 #include <cstdint>
 
 HEXA_PRISM_NAMESPACE_BEGIN
+
+	class SamplerState;
+	class ShaderResourceView;
+	class RenderTargetView;
+	class UnorderedAccessView;
+
 	struct Viewport
 	{
 		float X, Y;
@@ -20,6 +26,10 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		std::atomic<size_t> counter;
 
 	public:
+		PrismObject() : counter(1)
+		{
+		}
+
 		void AddRef()
 		{
 			counter.fetch_add(1, std::memory_order_acq_rel);
@@ -106,6 +116,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 			if (ptr != p)
 			{
 				if (ptr) ptr->Release();
+				p->AddRef();
 				ptr = p;
 			}
 			return *this;
@@ -157,6 +168,201 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		}
 	};
 
+	template<typename TCallback>
+	class EventHandlerList
+	{
+	public:
+		class EventHandler : public PrismObject
+		{
+			friend class EventHandlerList;
+			EventHandlerList* list;
+			TCallback callback;
+			EventHandler* next;
+			EventHandler* prev;
+
+		public:
+			EventHandler(EventHandlerList* list, TCallback callback, EventHandler* next, EventHandler* prev) : list(list), callback(std::move(callback)), next(next), prev(prev)
+			{
+			}
+
+			EventHandlerList* GetList() const
+			{
+				return list;
+			}
+
+			void Unsubscribe()
+			{
+				if (list)
+				{
+					list->Unsubscribe(this);
+					list = nullptr;
+				}
+			}
+		};
+
+		class EventHandlerToken
+		{
+			PrismObj<EventHandler> handler;
+
+		public:
+			EventHandlerToken() = default;
+			EventHandlerToken(EventHandler* handler) : handler(handler)
+			{
+			}
+			~EventHandlerToken()
+			{
+				Unsubscribe();
+			}
+
+			EventHandlerToken(const EventHandlerToken&) = delete;
+			EventHandlerToken& operator=(const EventHandlerToken&) = delete;
+			EventHandlerToken(EventHandlerToken&& other) noexcept : handler(std::move(other.handler))
+			{
+				other.handler = nullptr;
+			}
+			EventHandlerToken& operator=(EventHandlerToken&& other) noexcept
+			{
+				if (this != &other)
+				{
+					Unsubscribe();
+					handler = std::move(other.handler);
+					other.handler = nullptr;
+				}
+				return *this;
+			}
+
+			void Unsubscribe()
+			{
+				if (handler)
+				{
+					handler->Unsubscribe();
+					handler = nullptr;
+				}
+			}
+		};
+
+	private:
+		EventHandler* head;
+		std::atomic<size_t> lock;
+
+		void Lock()
+		{
+			size_t value = lock.load(std::memory_order_relaxed);
+			while (!lock.compare_exchange_weak(value, 1, std::memory_order_release, std::memory_order_acquire))
+			{
+				lock.wait(value, std::memory_order_relaxed);
+			}
+		}
+
+		void Unlock()
+		{
+			lock.store(0, std::memory_order_release);
+			lock.notify_one();
+		}
+
+		struct LockGuard
+		{
+			EventHandlerList* list;
+			explicit LockGuard(EventHandlerList* list) : list(list)
+			{
+				list->Lock();
+			}
+
+			~LockGuard()
+			{
+				list->Unlock();
+			}
+		};
+
+	public:
+
+		EventHandlerList() : head(nullptr)
+		{
+		}
+
+		~EventHandlerList()
+		{
+			LockGuard guard(this);
+			EventHandler* current = head;
+			while (current)
+			{
+				EventHandler* next = current->next;
+				current->list = nullptr; // Clear out get weak reference behavior, this will prevent any callback to call unsubscribe.
+				current->Release();
+				current = next;
+			}
+			head = nullptr;
+		}
+
+		EventHandlerToken Subscribe(TCallback callback)
+		{
+			LockGuard guard(this);
+			EventHandler* newHandler = new EventHandler(this, std::move(callback), head, nullptr);
+			if (head)
+			{
+				head->prev = newHandler;
+			}
+			head = newHandler;
+			return EventHandlerToken(newHandler);
+		}
+
+		void Unsubscribe(EventHandler* handler)
+		{
+			LockGuard guard(this);
+			if (handler->prev)
+			{
+				handler->prev->next = handler->next;
+			}
+			else
+			{
+				head = handler->next;
+			}
+			if (handler->next)
+			{
+				handler->next->prev = handler->prev;
+			}
+			handler->Release();
+		}
+
+		template<typename... TArgs>
+		void Invoke(TArgs&&... args)
+		{
+			LockGuard guard(this);
+			EventHandler* current = head;
+			while (current)
+			{
+				current->callback(std::forward<TArgs>(args)...);
+				current = current->next;
+			}
+		}
+	};
+
+	[[nodiscard]] inline void* PrismAlloc(const size_t size)
+	{
+		return malloc(size);
+	}
+
+	inline void PrismFree(void* ptr)
+	{
+		free(ptr);
+	}
+
+	template <typename T>
+	[[nodiscard]] inline T* PrismAllocT(const size_t count)
+	{
+		return static_cast<T*>(PrismAlloc(sizeof(T) * count));
+	}
+
+	inline void PrismZeroMemory(void* mem, const size_t size)
+	{
+		std::memset(mem, 0, size);
+	}
+
+	template <typename T>
+	inline void PrismZeroMemoryT(T* mem, const size_t size)
+	{
+		std::memset(mem, 0, sizeof(T) * size);
+	}
 
 	template <typename T, typename... TArgs>
 	[[nodiscard]] inline PrismObj<T> MakePrismObj(TArgs&&... args)
@@ -340,8 +546,66 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual void GetData(uint8_t*& data, size_t& dataLength) = 0;
 	};
 
+	class Pipeline : public PrismObject
+	{
+	};
+
+	enum class ShaderStage 
+	{
+		Compute,
+		Vertex,
+		Hull,
+		Domain,
+		Geometry,
+		Pixel
+	};
+
+	enum class ShaderParameterType
+	{
+		SRV,
+		UAV,
+		CBV,
+		Sampler,
+	};
+
+	struct BindingValuePair
+	{
+		const char* name;
+		ShaderStage stage;
+		ShaderParameterType type;
+		void* value;
+	};
+
+	class ResourceBindingList
+	{
+	public:
+		using iterator = BindingValuePair*;
+		using iterator_pair = std::pair<iterator, iterator>;
+
+		virtual ~ResourceBindingList() = default;
+
+		virtual Pipeline* GetPipeline() const = 0;
+
+		virtual void SetCBV(const char* name, Buffer* buffer) = 0;
+		virtual void SetSampler(const char* name, SamplerState* sampler) = 0;
+		virtual void SetSRV(const char* name, ShaderResourceView* view) = 0;
+		virtual void SetUAV(const char* name, UnorderedAccessView* view, uint32_t initialCount = static_cast<uint32_t>(-1)) = 0;
+
+		virtual void SetCBV(const char* name, ShaderStage stage, Buffer* buffer) = 0;
+		virtual void SetSampler(const char* name, ShaderStage stage, SamplerState* sampler) = 0;
+		virtual void SetSRV(const char* name, ShaderStage stage, ShaderResourceView* view) = 0;
+		virtual void SetUAV(const char* name, ShaderStage stage, UnorderedAccessView* view, uint32_t initialCount = static_cast<uint32_t>(-1)) = 0;
+
+		virtual iterator_pair GetSRVs() = 0;
+		virtual iterator_pair GetCBVs() = 0;
+		virtual iterator_pair GetUAVs() = 0;
+		virtual iterator_pair GetSamplers() = 0;
+	};
+
 	class PipelineState : public PrismObject
 	{
+	public:
+		virtual ResourceBindingList* GetBindings() = 0;
 	};
 
 	struct GraphicsPipelineDesc
@@ -353,7 +617,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		PrismObj<ShaderSource> pixelShader;
 	};
 
-	class GraphicsPipeline : public PrismObject
+	class GraphicsPipeline : public Pipeline
 	{
 	};
 
@@ -370,7 +634,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		PrismObj<ShaderSource> computeShader;
 	};
 
-	class ComputePipeline : public PrismObject
+	class ComputePipeline : public Pipeline
 	{
 	};
 

@@ -4,6 +4,7 @@
 #include <dxgi.h>
 #include <d3d11_4.h>
 #include <wrl/client.h>
+#include "descriptor_range.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
@@ -106,6 +107,16 @@ public:
 	~D3D11SamplerState() override = default;
 
 	ID3D11SamplerState* GetSamplerState() const { return samplerState.Get(); }
+};
+
+class D3D11GraphicsPipeline : public GraphicsPipeline
+{
+	
+};
+
+class D3D11ComputePipeline : public ComputePipeline
+{
+	
 };
 
 class D3D11CommandList : public CommandList
