@@ -64,7 +64,6 @@ public:
 private:
     void GlobalStateChanged(const char* name, D3D11ShaderParameterState oldState, D3D11ShaderParameterState state);
     void OnPipelineCompile(Pipeline* pipeline);
-    D3D11GraphicsDevice* GetDevice();
     void Reflect(const PrismObj<Blob>& shader, ShaderStage stage);
     void Clear();
 

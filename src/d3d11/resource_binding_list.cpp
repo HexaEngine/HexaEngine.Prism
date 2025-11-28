@@ -89,12 +89,6 @@ void D3D11ResourceBindingList::OnPipelineCompile(Pipeline* pipeline)
     D3D11GlobalResourceList::SetState(this);
 }
 
-D3D11GraphicsDevice* D3D11ResourceBindingList::GetDevice()
-{
-    // TODO: Implement device retrieval from pipeline
-    return nullptr;
-}
-
 static ShaderParameterType ConvertShaderInputType(D3D_SHADER_INPUT_TYPE type)
 {
     switch (type)
