@@ -82,9 +82,25 @@ void D3D11ResourceBindingList::GlobalStateChanged(const char* name, D3D11ShaderP
 void D3D11ResourceBindingList::OnPipelineCompile(Pipeline* pipeline)
 {
     Clear();
-    
-    // TODO: Implement shader reflection and binding setup
-    // This requires access to shader blob data and D3D11 shader reflection API
+
+    if (auto graphicsPipeline = dynamic_cast<D3D11GraphicsPipeline*>(pipeline))
+    {
+        Reflect(graphicsPipeline->vertexShaderBlob, ShaderStage::Vertex);
+        Reflect(graphicsPipeline->hullShaderBlob, ShaderStage::Hull);
+        Reflect(graphicsPipeline->domainShaderBlob, ShaderStage::Domain);
+        Reflect(graphicsPipeline->geometryShaderBlob, ShaderStage::Geometry);
+        Reflect(graphicsPipeline->pixelShaderBlob, ShaderStage::Pixel);
+    }
+
+    if (auto computePipeline = dynamic_cast<D3D11ComputePipeline*>(pipeline))
+    {
+        Reflect(computePipeline->computeShaderBlob, ShaderStage::Compute);
+    }
+
+    rangesSRVs.shrink_to_fit();
+    rangesUAVs.shrink_to_fit();
+    rangesCBVs.shrink_to_fit();
+    rangesSamplers.shrink_to_fit();
     
     D3D11GlobalResourceList::SetState(this);
 }

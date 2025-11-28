@@ -111,6 +111,7 @@ public:
 
 class D3D11GraphicsPipeline : public GraphicsPipeline
 {
+	friend class D3D11ResourceBindingList;
 	ComPtr<ID3D11VertexShader> vs;
 	ComPtr<ID3D11HullShader> hs;
 	ComPtr<ID3D11DomainShader> ds;
@@ -133,7 +134,10 @@ class D3D11GraphicsPipeline : public GraphicsPipeline
 
 class D3D11ComputePipeline : public ComputePipeline
 {
+	friend class D3D11ResourceBindingList;
 	ComPtr<ID3D11ComputeShader> cs;
+
+	PrismObj<Blob> computeShaderBlob;
 };
 
 class D3D11CommandList : public CommandList
