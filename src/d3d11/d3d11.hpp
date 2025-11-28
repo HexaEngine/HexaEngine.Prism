@@ -111,12 +111,29 @@ public:
 
 class D3D11GraphicsPipeline : public GraphicsPipeline
 {
-	
+	ComPtr<ID3D11VertexShader> vs;
+	ComPtr<ID3D11HullShader> hs;
+	ComPtr<ID3D11DomainShader> ds;
+	ComPtr<ID3D11GeometryShader> gs;
+	ComPtr<ID3D11PixelShader> ps;
+
+	PrismObj<Blob> vertexShaderBlob;
+	PrismObj<Blob> hullShaderBlob;
+	PrismObj<Blob> domainShaderBlob;
+	PrismObj<Blob> geometryShaderBlob;
+	PrismObj<Blob> pixelShaderBlob;
+
+
+
+
+
+
+
 };
 
 class D3D11ComputePipeline : public ComputePipeline
 {
-	
+	ComPtr<ID3D11ComputeShader> cs;
 };
 
 class D3D11CommandList : public CommandList

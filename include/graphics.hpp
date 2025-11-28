@@ -125,8 +125,8 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		template <typename U>
 		constexpr operator U*() { return ptr; }
 
-		constexpr T* operator->() { return ptr; }
-		constexpr T& operator*() { return *ptr; }
+		constexpr T* operator->() const { return ptr; }
+		constexpr T& operator*() const { return *ptr; }
 		constexpr operator bool() const noexcept { return ptr != nullptr; }
 		bool operator==(const PrismObj<T>& other) const noexcept { return ptr == other.ptr; }
 		bool operator!=(const PrismObj<T>& other) const noexcept { return ptr != other.ptr; }
@@ -544,6 +544,29 @@ HEXA_PRISM_NAMESPACE_BEGIN
 	public:
 		virtual const char* GetIdentifier() = 0;
 		virtual void GetData(uint8_t*& data, size_t& dataLength) = 0;
+	};
+
+	class Blob : public PrismObject
+	{
+		uint8_t* data;
+		size_t length;
+
+	public:
+		Blob() : data(nullptr), length(0)
+		{
+		}
+		Blob(uint8_t* bytecode, size_t length) : data(bytecode), length(length)
+		{
+		}
+
+		~Blob() override
+		{
+			delete[] data;
+		}
+
+
+		uint8_t* GetData() const { return data; }
+		size_t GetLength() const { return length; }
 	};
 
 	class Pipeline : public PrismObject
