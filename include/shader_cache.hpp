@@ -1,5 +1,5 @@
 #pragma once
-#include "graphics.hpp"
+#include "prism.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN
 

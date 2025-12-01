@@ -1,4 +1,4 @@
-#include "graphics.hpp"
+#include "prism.hpp"
 
 #ifdef HEXA_PRISM_WINDOWS
 #include "d3d11/d3d11.hpp"

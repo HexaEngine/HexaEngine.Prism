@@ -1,8 +1,5 @@
 #pragma once
-#include "graphics.hpp"
-
-#include <d3d11_4.h>
-#include <wrl/client.h>
+#include "common.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN
 

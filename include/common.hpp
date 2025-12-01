@@ -8,6 +8,10 @@
 #include <algorithm>
 #include <limits>
 #include <vector>
+#include <functional>
+#include <string>
+#include <stdexcept>
+#include <iostream>
 
 #define HEXA_PRISM_NAMESPACE HexaEngine::Prism
 #define HEXA_PRISM_NAMESPACE_BEGIN namespace HexaEngine { namespace Prism {
@@ -15,5 +19,4 @@
 
 #if defined(_WIN64) || defined(_WIN32)
 #define HEXA_PRISM_WINDOWS 1
-#define NOMINMAX 1
 #endif

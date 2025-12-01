@@ -1,14 +1,10 @@
 #pragma once
 #include "common.hpp"
-#include "graphics.hpp"
-#include <dxgi1_6.h>
-#include <d3d11_4.h>
-#include <wrl/client.h>
 #include "descriptor_range.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
-using Microsoft::WRL::ComPtr;
+class D3D11GraphicsDevice;
 
 class D3D11Buffer : public Buffer
 {
@@ -127,6 +123,8 @@ public:
 class D3D11GraphicsPipeline : public GraphicsPipeline
 {
 	friend class D3D11ResourceBindingList;
+protected:
+	D3D11GraphicsDevice* device;
 	ComPtr<ID3D11VertexShader> vs;
 	ComPtr<ID3D11HullShader> hs;
 	ComPtr<ID3D11DomainShader> ds;
@@ -138,14 +136,29 @@ class D3D11GraphicsPipeline : public GraphicsPipeline
 	PrismObj<Blob> domainShaderBlob;
 	PrismObj<Blob> geometryShaderBlob;
 	PrismObj<Blob> pixelShaderBlob;
+	bool valid;
+
+public:
+	D3D11GraphicsPipeline(D3D11GraphicsDevice* device, const GraphicsPipelineDesc& desc);
+	~D3D11GraphicsPipeline() override = default;
+
+	void Compile();
+	bool IsValid() const noexcept { return valid; }
 };
 
 class D3D11ComputePipeline : public ComputePipeline
 {
 	friend class D3D11ResourceBindingList;
+	D3D11GraphicsDevice* device;
 	ComPtr<ID3D11ComputeShader> cs;
 
 	PrismObj<Blob> computeShaderBlob;
+	bool valid;
+
+public:
+	D3D11ComputePipeline(D3D11GraphicsDevice* device, const ComputePipelineDesc& desc);
+
+	void Compile();
 };
 
 class D3D11CommandList : public CommandList

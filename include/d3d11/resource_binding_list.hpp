@@ -1,9 +1,6 @@
 #pragma once
 #include "descriptor_range.hpp"
 #include "d3d11.hpp"
-#include <vector>
-#include <functional>
-#include <string>
 
 HEXA_PRISM_NAMESPACE_BEGIN
 

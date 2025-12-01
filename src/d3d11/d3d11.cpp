@@ -1,5 +1,5 @@
-#include "d3d11.hpp"
-#include <stdexcept>
+#include "d3d11/d3d11.hpp"
+#include "d3d11/shader_compiler.hpp"
 #include <SDL3/SDL.h>
 
 HEXA_PRISM_NAMESPACE_BEGIN
@@ -207,6 +207,99 @@ D3D11SamplerState::D3D11SamplerState(const SamplerDesc& desc, ComPtr<ID3D11Sampl
 }
 
 // D3D11CommandList Implementation
+
+D3D11GraphicsPipeline::D3D11GraphicsPipeline(D3D11GraphicsDevice* device, const GraphicsPipelineDesc& desc) : GraphicsPipeline(desc), device(device), valid(false)
+{
+	Compile();
+}
+
+namespace
+{
+	template<typename TShaderInterface>
+	bool CompileAndCreateShader(
+		ID3D11Device* device,
+		ShaderSource* source,
+		const char* entryPoint,
+		const char* targetProfile,
+		PrismObj<Blob>& blobOut,
+		ComPtr<TShaderInterface>& shaderOut,
+		HRESULT(ID3D11Device::* createFunc)(const void*, SIZE_T, ID3D11ClassLinkage*, TShaderInterface**)
+	)
+	{
+		if (!source)
+			return true;
+
+		bool ok = D3D11ShaderCompiler::Compile(source, entryPoint, targetProfile, blobOut);
+		if (!ok)
+			return false;
+
+		HRESULT hr = (device->*createFunc)(
+			blobOut->GetData(),
+			blobOut->GetLength(),
+			nullptr,
+			shaderOut.GetAddressOf()
+			);
+
+		return SUCCEEDED(hr);
+	}
+}
+
+void D3D11GraphicsPipeline::Compile()
+{
+	auto dev = device->GetDevice();
+	bool success = true;
+
+	success &= CompileAndCreateShader(
+		dev, desc.vertexShader, desc.vertexEntryPoint, "vs_5_0",
+		vertexShaderBlob, vs,
+		&ID3D11Device::CreateVertexShader
+	);
+
+	success &= CompileAndCreateShader(
+		dev, desc.hullShader, desc.hullEntryPoint, "hs_5_0",
+		hullShaderBlob, hs,
+		&ID3D11Device::CreateHullShader
+	);
+
+	success &= CompileAndCreateShader(
+		dev, desc.domainShader, desc.domainEntryPoint, "ds_5_0",
+		domainShaderBlob, ds,
+		&ID3D11Device::CreateDomainShader
+	);
+
+	success &= CompileAndCreateShader(
+		dev, desc.geometryShader, desc.geometryEntryPoint, "gs_5_0",
+		geometryShaderBlob, gs,
+		&ID3D11Device::CreateGeometryShader
+	);
+
+	success &= CompileAndCreateShader(
+		dev, desc.pixelShader, desc.pixelEntryPoint, "ps_5_0",
+		pixelShaderBlob, ps,
+		&ID3D11Device::CreatePixelShader
+	);
+
+	valid = success;
+}
+
+D3D11ComputePipeline::D3D11ComputePipeline(D3D11GraphicsDevice* device, const ComputePipelineDesc& desc) : ComputePipeline(desc), device(device), valid(false)
+{
+	Compile();
+}
+
+void D3D11ComputePipeline::Compile()
+{
+	auto dev = device->GetDevice();
+	bool success = true;
+
+	success &= CompileAndCreateShader(
+		dev, desc.computeShader, desc.computeEntryPoint, "cs_5_0",
+		computeShaderBlob, cs,
+		&ID3D11Device::CreateComputeShader
+	);
+
+	valid = success;
+}
 
 D3D11CommandList::D3D11CommandList(ComPtr<ID3D11DeviceContext4>&& context, const CommandListType type)
 	: context(std::move(context)), type(type)
@@ -1064,9 +1157,7 @@ PrismObj<SamplerState> D3D11GraphicsDevice::CreateSamplerState(const SamplerDesc
 
 PrismObj<GraphicsPipeline> D3D11GraphicsDevice::CreateGraphicsPipeline(const GraphicsPipelineDesc& desc)
 {
-	// TODO: Implement graphics pipeline creation
-	// In D3D11, this would involve creating shaders, input layout, etc.
-	return {};
+	return MakePrismObj<D3D11GraphicsPipeline>(this, desc);
 }
 
 PrismObj<GraphicsPipelineState> D3D11GraphicsDevice::CreateGraphicsPipelineState(GraphicsPipeline* pipeline, const GraphicsPipelineStateDesc& desc)

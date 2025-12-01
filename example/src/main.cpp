@@ -1,5 +1,5 @@
 #include "main.hpp"
-#include <graphics.hpp>
+#include <prism.hpp>
 #include <SDL3/SDL_video.h>
 #include <SDL3/SDL.h>
 
@@ -22,7 +22,7 @@ using namespace HEXA_PRISM_NAMESPACE;
 
 int main()
 {
-    HideConsole();
+    //HideConsole();
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
     float scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
@@ -36,6 +36,44 @@ int main()
     RenderTargetViewDesc rtvDesc = {};
     rtvDesc.dimension = RenderTargetViewDimension::Texture2D;
     auto rtv = device->CreateRenderTargetView(tex, rtvDesc);
+
+    auto vertexShader = MakePrismObj<TextShaderSource>("VertexShader", R"(struct VSInput
+    {
+        float3 pos : POSITION;
+        float4 color : COLOR;
+    };
+
+    struct PSInput
+    {
+        float4 pos : SV_POSITION;
+        float4 color : COLOR;
+    };
+
+    PSInput main(VSInput input)
+    {
+        PSInput output;
+        output.pos = float4(input.pos, 1.0);
+        output.color = input.color;
+        return output;
+    }
+    )");
+	auto pixelShader = MakePrismObj<TextShaderSource>("PixelShader", R"(struct PSInput
+    {
+        float4 pos : SV_POSITION;
+        float4 color : COLOR;
+    };
+
+    float4 main(PSInput input) : SV_TARGET
+    {
+        return input.color;
+    }
+    )");
+
+	GraphicsPipelineDesc pipelineDesc = {};
+    pipelineDesc.vertexShader = vertexShader;
+    pipelineDesc.pixelShader = pixelShader;
+
+	auto pipeline = device->CreateGraphicsPipeline(pipelineDesc);
 
 	bool running = true;
     while (running)

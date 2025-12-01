@@ -22,8 +22,8 @@ target_link_libraries(PrismStatic SDL3::SDL3)
 
 # Link D3D11 libraries on Windows
 if(WIN32)
-    target_link_libraries(PrismShared d3d11.lib dxgi.lib)
-    target_link_libraries(PrismStatic d3d11.lib dxgi.lib)
+    target_link_libraries(PrismShared d3d11.lib dxgi.lib d3dcompiler.lib)
+    target_link_libraries(PrismStatic d3d11.lib dxgi.lib d3dcompiler.lib)
     target_compile_definitions(PrismShared PRIVATE NOMINMAX)
     target_compile_definitions(PrismStatic PRIVATE NOMINMAX)
 endif()

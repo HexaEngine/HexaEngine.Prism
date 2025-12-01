@@ -1,10 +1,5 @@
-#include "resource_binding_list.hpp"
-#include "d3d11.hpp"
-#include <d3dcompiler.h>
-#include <stdexcept>
-#include <vector>
-#include <string>
-#include <cstring>
+#include "d3d11/resource_binding_list.hpp"
+#include "d3d11/d3d11.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN
 

@@ -48,6 +48,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 	template <typename T>
 	class PrismObj
 	{
+		template <typename U> friend class PrismObj;
 		T* ptr;
 
 	public:
@@ -60,7 +61,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 			if (ptr && addRef) ptr->AddRef();
 		}
 
-		PrismObj(const PrismObj<T>& other) noexcept : ptr(other.ptr)
+		PrismObj(const PrismObj& other) noexcept : ptr(other.ptr)
 		{
 			if (ptr) ptr->AddRef();
 		}
@@ -77,7 +78,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 			if (ptr) ptr->AddRef();
 		}
 
-		PrismObj(PrismObj<T>&& other) noexcept : ptr(other.ptr)
+		PrismObj(PrismObj&& other) noexcept : ptr(other.ptr)
 		{
 			other.ptr = nullptr;
 		}
@@ -88,7 +89,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 			ptr = nullptr;
 		}
 
-		PrismObj<T>& operator=(const PrismObj<T>& other)
+		PrismObj& operator=(const PrismObj& other)
 		{
 			if (this != &other)
 			{
@@ -99,7 +100,19 @@ HEXA_PRISM_NAMESPACE_BEGIN
 			return *this;
 		}
 
-		PrismObj<T>& operator=(PrismObj<T>&& other) noexcept
+		template <typename U, std::enable_if_t<std::is_convertible_v<U*, T*>, int> = 0>
+		PrismObj& operator=(PrismObj<U>& other)
+		{
+			if (ptr != other.ptr)
+			{
+				if (other.ptr) other.ptr->AddRef();
+				if (ptr) ptr->Release();
+				ptr = other.ptr;
+			}
+			return *this;
+		}
+
+		PrismObj& operator=(PrismObj&& other) noexcept
 		{
 			if (this != &other)
 			{
@@ -110,7 +123,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 			return *this;
 		}
 
-		PrismObj<T>& operator=(T* p) noexcept
+		PrismObj& operator=(T* p) noexcept
 		{
 			if (ptr != p)
 			{
@@ -358,9 +371,20 @@ HEXA_PRISM_NAMESPACE_BEGIN
 	}
 
 	template <typename T>
-	inline void PrismZeroMemoryT(T* mem, const size_t size)
+	inline void PrismZeroMemoryT(T* mem, const size_t count)
 	{
-		std::memset(mem, 0, sizeof(T) * size);
+		std::memset(mem, 0, sizeof(T) * count);
+	}
+
+	inline void PrismMemoryCopy(void* dst, void* src, size_t size)
+	{
+		std::memcpy(dst, src, size);
+	}
+
+	template <typename T>
+	inline void PrismMemoryCopyT(T* dst, T* src, size_t count)
+	{
+		std::memcpy(dst, src, sizeof(T) * count);
 	}
 
 	template <typename T, typename... TArgs>
@@ -545,22 +569,47 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual void GetData(uint8_t*& data, size_t& dataLength) = 0;
 	};
 
+	class TextShaderSource : public ShaderSource
+	{
+		std::string identifier;
+		std::string text;
+	public:
+		TextShaderSource(const std::string& identifier, const std::string& text) : identifier(identifier),		 text(text)
+		{
+		}
+
+		const char* GetIdentifier() override
+		{
+			return identifier.c_str();
+		}
+
+		void GetData(uint8_t*& data, size_t& dataLength) override
+		{
+			data = reinterpret_cast<uint8_t*>(text.data());
+			dataLength = text.size();
+		}
+	};
+
 	class Blob : public PrismObject
 	{
 		uint8_t* data;
 		size_t length;
+		bool owns;
 
 	public:
 		Blob() : data(nullptr), length(0)
 		{
 		}
-		Blob(uint8_t* bytecode, size_t length) : data(bytecode), length(length)
+		Blob(uint8_t* bytecode, size_t length, bool owns) : data(bytecode), length(length), owns(owns)
 		{
 		}
 
 		~Blob() override
 		{
-			delete[] data;
+			if (owns)
+			{
+				PrismFree(data);
+			}
 		}
 
 
@@ -633,15 +682,28 @@ HEXA_PRISM_NAMESPACE_BEGIN
 	struct GraphicsPipelineDesc
 	{
 		PrismObj<ShaderSource> vertexShader;
+		const char* vertexEntryPoint;
 		PrismObj<ShaderSource> hullShader;
+		const char* hullEntryPoint;
 		PrismObj<ShaderSource> domainShader;
+		const char* domainEntryPoint;
 		PrismObj<ShaderSource> geometryShader;
+		const char* geometryEntryPoint;
 		PrismObj<ShaderSource> pixelShader;
+		const char* pixelEntryPoint;
 	};
 
 	class GraphicsPipeline : public Pipeline
 	{
+	protected:
+		GraphicsPipelineDesc desc;
+	public:
+		GraphicsPipeline(const GraphicsPipelineDesc& desc) : desc(desc) {}
+
+		const GraphicsPipelineDesc& GetDesc() const { return desc; }
 	};
+
+	
 
 	struct GraphicsPipelineStateDesc
 	{
@@ -654,10 +716,16 @@ HEXA_PRISM_NAMESPACE_BEGIN
 	struct ComputePipelineDesc
 	{
 		PrismObj<ShaderSource> computeShader;
+		const char* computeEntryPoint;
 	};
 
 	class ComputePipeline : public Pipeline
 	{
+	protected:
+		ComputePipelineDesc desc;
+	public:
+		ComputePipeline(const ComputePipelineDesc& desc) : desc(desc) {}
+		const ComputePipelineDesc& GetDesc() const { return desc; }
 	};
 
 	struct ComputePipelineStateDesc
