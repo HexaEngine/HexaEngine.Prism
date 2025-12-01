@@ -55,7 +55,7 @@ struct BlendDescription
 	std::array<RenderTargetBlendDescription, SimultaneousRenderTargetCount> renderTargets;
 
 private:
-	constexpr bool IsBlendEnabled(const RenderTargetBlendDescription& renderTarget)
+	static constexpr bool IsBlendEnabled(const RenderTargetBlendDescription& renderTarget)
 	{
 		return renderTarget.blendOpAlpha != BlendOperation::Add
 			|| renderTarget.sourceBlendAlpha != Blend::One
@@ -137,11 +137,12 @@ public:
 
 namespace BlendDescriptions
 {
-	static constexpr BlendDescription Opaque = BlendDescription(Blend::One, Blend::Zero);
-	static constexpr BlendDescription AlphaBlend = BlendDescription(Blend::One, Blend::InverseSourceAlpha);
-	static constexpr BlendDescription Additive = BlendDescription(Blend::SourceAlpha, Blend::One);
-	static constexpr BlendDescription NonPremultiplied = BlendDescription(Blend::SourceAlpha, Blend::InverseSourceAlpha);
+	static constexpr auto Opaque = BlendDescription(Blend::One, Blend::Zero);
+	static constexpr auto AlphaBlend = BlendDescription(Blend::One, Blend::InverseSourceAlpha);
+	static constexpr auto Additive = BlendDescription(Blend::SourceAlpha, Blend::One);
+	static constexpr auto NonPremultiplied = BlendDescription(Blend::SourceAlpha, Blend::InverseSourceAlpha);
 }
+
 
 struct RasterizerDescription
 {
@@ -164,14 +165,14 @@ struct RasterizerDescription
 
 	constexpr RasterizerDescription() = default;
 
-	constexpr RasterizerDescription(enum CullMode cullMode, enum FillMode fillMode)
+	constexpr RasterizerDescription(CullMode cullMode, FillMode fillMode)
 		: fillMode(fillMode), cullMode(cullMode)
 	{
 	}
 
 	constexpr RasterizerDescription(
-		enum CullMode cullMode,
-		enum FillMode fillMode,
+		CullMode cullMode,
+		FillMode fillMode,
 		bool frontCounterClockwise,
 		int depthBias,
 		float depthBiasClamp,
@@ -194,8 +195,8 @@ struct RasterizerDescription
 	}
 
 	constexpr RasterizerDescription(
-		enum CullMode cullMode,
-		enum FillMode fillMode,
+		CullMode cullMode,
+		FillMode fillMode,
 		bool frontCounterClockwise,
 		int depthBias,
 		float depthBiasClamp,
@@ -224,14 +225,14 @@ struct RasterizerDescription
 
 namespace RasterizerDescriptions
 {
-	static constexpr RasterizerDescription CullNone = RasterizerDescription(CullMode::None, FillMode::Solid);
-	static constexpr RasterizerDescription CullFront = RasterizerDescription(CullMode::Front, FillMode::Solid);
-	static constexpr RasterizerDescription CullBack = RasterizerDescription(CullMode::Back, FillMode::Solid);
-	static constexpr RasterizerDescription CullBackScissors = RasterizerDescription(CullMode::Back, FillMode::Solid, false, 0, 0.0f, 0.0f, true, true, true, false);
-	static constexpr RasterizerDescription Wireframe = RasterizerDescription(CullMode::None, FillMode::Wireframe);
-	static constexpr RasterizerDescription CullNoneDepthBias = RasterizerDescription(CullMode::None, FillMode::Solid, false, -1, 0.0f, 1.0f, true, false, false, false);
-	static constexpr RasterizerDescription CullFrontDepthBias = RasterizerDescription(CullMode::Front, FillMode::Solid, false, -1, 0.0f, 1.0f, true, false, false, false);
-	static constexpr RasterizerDescription CullBackDepthBias = RasterizerDescription(CullMode::Back, FillMode::Solid, false, -1, 0.0f, 1.0f, true, false, false, false);
+	static constexpr auto CullNone = RasterizerDescription(CullMode::None, FillMode::Solid);
+	static constexpr auto CullFront = RasterizerDescription(CullMode::Front, FillMode::Solid);
+	static constexpr auto CullBack = RasterizerDescription(CullMode::Back, FillMode::Solid);
+	static constexpr auto CullBackScissors = RasterizerDescription(CullMode::Back, FillMode::Solid, false, 0, 0.0f, 0.0f, true, true, true, false);
+	static constexpr auto Wireframe = RasterizerDescription(CullMode::None, FillMode::Wireframe);
+	static constexpr auto CullNoneDepthBias = RasterizerDescription(CullMode::None, FillMode::Solid, false, -1, 0.0f, 1.0f, true, false, false, false);
+	static constexpr auto CullFrontDepthBias = RasterizerDescription(CullMode::Front, FillMode::Solid, false, -1, 0.0f, 1.0f, true, false, false, false);
+	static constexpr auto CullBackDepthBias = RasterizerDescription(CullMode::Back, FillMode::Solid, false, -1, 0.0f, 1.0f, true, false, false, false);
 }
 
 struct DepthStencilOperationDescription
@@ -258,19 +259,19 @@ struct DepthStencilOperationDescription
 
 namespace DepthStencilOperationDescriptions
 {
-	static constexpr DepthStencilOperationDescription Default = DepthStencilOperationDescription(
+	static constexpr auto Default = DepthStencilOperationDescription(
 		StencilOperation::Keep,
 		StencilOperation::Keep,
 		StencilOperation::Keep,
 		ComparisonFunc::Always);
 
-	static constexpr DepthStencilOperationDescription DefaultFront = DepthStencilOperationDescription(
+	static constexpr auto DefaultFront = DepthStencilOperationDescription(
 		StencilOperation::Keep,
 		StencilOperation::Increment,
 		StencilOperation::Keep,
 		ComparisonFunc::Always);
 
-	static constexpr DepthStencilOperationDescription DefaultBack = DepthStencilOperationDescription(
+	static constexpr auto DefaultBack = DepthStencilOperationDescription(
 		StencilOperation::Keep,
 		StencilOperation::Decrement,
 		StencilOperation::Keep,
@@ -346,15 +347,15 @@ struct DepthStencilDescription
 
 namespace DepthStencilDescriptions
 {
-	static constexpr DepthStencilDescription None = DepthStencilDescription(false, DepthWriteMask::Zero);
-	static constexpr DepthStencilDescription Always = DepthStencilDescription(true, DepthWriteMask::All, ComparisonFunc::Always);
-	static constexpr DepthStencilDescription Default = DepthStencilDescription(true, DepthWriteMask::All);
-	static constexpr DepthStencilDescription DefaultLess = DepthStencilDescription(true, DepthWriteMask::All, ComparisonFunc::Less);
-	static constexpr DepthStencilDescription DefaultStencil = DepthStencilDescription(true, true, DepthWriteMask::All);
-	static constexpr DepthStencilDescription DepthRead = DepthStencilDescription(true, DepthWriteMask::Zero);
-	static constexpr DepthStencilDescription DepthReadEquals = DepthStencilDescription(true, DepthWriteMask::Zero, ComparisonFunc::Equal);
-	static constexpr DepthStencilDescription DepthReverseZ = DepthStencilDescription(true, DepthWriteMask::All, ComparisonFunc::GreaterEqual);
-	static constexpr DepthStencilDescription DepthReadReverseZ = DepthStencilDescription(true, DepthWriteMask::Zero, ComparisonFunc::GreaterEqual);
+	static constexpr auto None = DepthStencilDescription(false, DepthWriteMask::Zero);
+	static constexpr auto Always = DepthStencilDescription(true, DepthWriteMask::All, ComparisonFunc::Always);
+	static constexpr auto Default = DepthStencilDescription(true, DepthWriteMask::All);
+	static constexpr auto DefaultLess = DepthStencilDescription(true, DepthWriteMask::All, ComparisonFunc::Less);
+	static constexpr auto DefaultStencil = DepthStencilDescription(true, true, DepthWriteMask::All);
+	static constexpr auto DepthRead = DepthStencilDescription(true, DepthWriteMask::Zero);
+	static constexpr auto DepthReadEquals = DepthStencilDescription(true, DepthWriteMask::Zero, ComparisonFunc::Equal);
+	static constexpr auto DepthReverseZ = DepthStencilDescription(true, DepthWriteMask::All, ComparisonFunc::GreaterEqual);
+	static constexpr auto DepthReadReverseZ = DepthStencilDescription(true, DepthWriteMask::Zero, ComparisonFunc::GreaterEqual);
 }
 
 struct InputElementDescription
@@ -375,12 +376,12 @@ struct GraphicsPipelineStateDesc
 	RasterizerDescription rasterizer = RasterizerDescriptions::CullBack;
 	DepthStencilDescription depthStencil = DepthStencilDescriptions::Default;
 	BlendDescription blend = BlendDescriptions::Opaque;
-	PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
 	Color blendFactor;
 	uint32_t sampleMask = 0xFFFFFFFF;
 	uint32_t stencilRef = 0;
 	const InputElementDescription* inputElements = nullptr;
-	size_t numInputElements = 0;
+	uint32_t numInputElements = 0;
+	PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
 	PipelineStateFlags flags = PipelineStateFlags::None;
 
 	constexpr GraphicsPipelineStateDesc() = default;
@@ -412,42 +413,42 @@ struct GraphicsPipelineStateDesc
 
 namespace GraphicsPipelineStateDescs
 {
-	static constexpr GraphicsPipelineStateDesc Default = GraphicsPipelineStateDesc(
+	static constexpr auto Default = GraphicsPipelineStateDesc(
 		RasterizerDescriptions::CullBack,
 		DepthStencilDescriptions::Default,
 		BlendDescriptions::Opaque,
 		PrimitiveTopology::TriangleList
 	);
 
-	static constexpr GraphicsPipelineStateDesc DefaultAlphaBlend = GraphicsPipelineStateDesc(
+	static constexpr auto DefaultAlphaBlend = GraphicsPipelineStateDesc(
 		RasterizerDescriptions::CullBack,
 		DepthStencilDescriptions::Default,
 		BlendDescriptions::AlphaBlend,
 		PrimitiveTopology::TriangleList
 	);
 
-	static constexpr GraphicsPipelineStateDesc DefaultFullscreen = GraphicsPipelineStateDesc(
+	static constexpr auto DefaultFullscreen = GraphicsPipelineStateDesc(
 		RasterizerDescriptions::CullBack,
 		DepthStencilDescriptions::None,
 		BlendDescriptions::Opaque,
 		PrimitiveTopology::TriangleStrip
 	);
 
-	static constexpr GraphicsPipelineStateDesc DefaultFullscreenScissors = GraphicsPipelineStateDesc(
+	static constexpr auto DefaultFullscreenScissors = GraphicsPipelineStateDesc(
 		RasterizerDescriptions::CullBackScissors,
 		DepthStencilDescriptions::None,
 		BlendDescriptions::Opaque,
 		PrimitiveTopology::TriangleStrip
 	);
 
-	static constexpr GraphicsPipelineStateDesc DefaultAdditiveFullscreen = GraphicsPipelineStateDesc(
+	static constexpr auto DefaultAdditiveFullscreen = GraphicsPipelineStateDesc(
 		RasterizerDescriptions::CullBack,
 		DepthStencilDescriptions::None,
 		BlendDescriptions::Additive,
 		PrimitiveTopology::TriangleStrip
 	);
 
-	static constexpr GraphicsPipelineStateDesc DefaultAlphaBlendFullscreen = GraphicsPipelineStateDesc(
+	static constexpr auto DefaultAlphaBlendFullscreen = GraphicsPipelineStateDesc(
 		RasterizerDescriptions::CullBack,
 		DepthStencilDescriptions::None,
 		BlendDescriptions::AlphaBlend,
