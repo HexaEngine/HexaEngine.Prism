@@ -1,7 +1,7 @@
 #pragma once
 #include "common.hpp"
 #include "graphics.hpp"
-#include <dxgi.h>
+#include <dxgi1_6.h>
 #include <d3d11_4.h>
 #include <wrl/client.h>
 #include "descriptor_range.hpp"
@@ -109,6 +109,21 @@ public:
 	ID3D11SamplerState* GetSamplerState() const { return samplerState.Get(); }
 };
 
+class D3D11SwapChain : public SwapChain
+{
+	ComPtr<IDXGISwapChain3> swapChain;
+
+public:
+	D3D11SwapChain(const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc, ComPtr<IDXGISwapChain3>&& swapChain);
+	~D3D11SwapChain() override = default;
+
+	void ResizeBuffers(uint32_t bufferCount, uint32_t width, uint32_t height, Format newFormat, SwapChainFlags swapChainFlags) override;
+	PrismObj<Texture2D> GetBuffer(size_t index) override;
+	void Present(uint32_t interval, PresentFlags flags) override;
+
+	IDXGISwapChain3* GetSwapChain() const { return swapChain.Get(); }
+};
+
 class D3D11GraphicsPipeline : public GraphicsPipeline
 {
 	friend class D3D11ResourceBindingList;
@@ -123,13 +138,6 @@ class D3D11GraphicsPipeline : public GraphicsPipeline
 	PrismObj<Blob> domainShaderBlob;
 	PrismObj<Blob> geometryShaderBlob;
 	PrismObj<Blob> pixelShaderBlob;
-
-
-
-
-
-
-
 };
 
 class D3D11ComputePipeline : public ComputePipeline
@@ -203,6 +211,8 @@ public:
 	PrismObj<GraphicsPipelineState> CreateGraphicsPipelineState(GraphicsPipeline* pipeline, const GraphicsPipelineStateDesc& desc) override;
 	PrismObj<ComputePipeline> CreateComputePipeline(const ComputePipelineDesc& desc) override;
 	PrismObj<ComputePipelineState> CreateComputePipelineState(ComputePipeline* pipeline, const ComputePipelineStateDesc& desc) override;
+	PrismObj<SwapChain> CreateSwapChain(void* windowHandle, const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc) override;
+	PrismObj<SwapChain> CreateSwapChain(void* windowHandle) override;
 
 	ID3D11Device4* GetDevice() const { return device.Get(); }
 	IDXGIFactory4* GetFactory() const { return factory.Get(); }

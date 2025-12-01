@@ -1,5 +1,6 @@
 #include "d3d11.hpp"
 #include <stdexcept>
+#include <SDL3/SDL.h>
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
@@ -113,6 +114,31 @@ namespace
 		UINT result = 0;
 		if ((static_cast<uint32_t>(flags) & static_cast<uint32_t>(ResourceMiscFlags::TextureCube)) != 0)
 			result |= D3D11_RESOURCE_MISC_TEXTURECUBE;
+		return result;
+	}
+
+	UINT ConvertSwapChainFlags(SwapChainFlags flags)
+	{
+		return static_cast<UINT>(flags);
+	}
+
+	DXGI_USAGE ConvertUsageFlags(Usage usage)
+	{
+		DXGI_USAGE result = 0;
+		
+		if ((static_cast<uint32_t>(usage) & static_cast<uint32_t>(Usage::BackBuffer)) != 0)
+			result |= DXGI_USAGE_BACK_BUFFER;
+		if ((static_cast<uint32_t>(usage) & static_cast<uint32_t>(Usage::ReadOnly)) != 0)
+			result |= DXGI_USAGE_READ_ONLY;
+		if ((static_cast<uint32_t>(usage) & static_cast<uint32_t>(Usage::RenderTargetOutput)) != 0)
+			result |= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		if ((static_cast<uint32_t>(usage) & static_cast<uint32_t>(Usage::ShaderInput)) != 0)
+			result |= DXGI_USAGE_SHADER_INPUT;
+		if ((static_cast<uint32_t>(usage) & static_cast<uint32_t>(Usage::Shared)) != 0)
+			result |= DXGI_USAGE_SHARED;
+		if ((static_cast<uint32_t>(usage) & static_cast<uint32_t>(Usage::UnorderedAccess)) != 0)
+			result |= DXGI_USAGE_UNORDERED_ACCESS;
+		
 		return result;
 	}
 }
@@ -411,7 +437,7 @@ bool D3D11GraphicsDevice::Initialize()
 	HRESULT hr;
 
 	// Create DXGI Factory
-	hr = CreateDXGIFactory2(0, IID_PPV_ARGS(&factory));
+	hr = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&factory));
 	if (FAILED(hr))
 	{
 		return false;
@@ -1060,6 +1086,272 @@ PrismObj<ComputePipelineState> D3D11GraphicsDevice::CreateComputePipelineState(C
 {
 	// TODO: Implement compute pipeline state creation
 	return {};
+}
+
+// D3D11SwapChain Implementation
+
+D3D11SwapChain::D3D11SwapChain(const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc, ComPtr<IDXGISwapChain3>&& swapChain)
+	: SwapChain(desc, fullscreenDesc), swapChain(std::move(swapChain))
+{
+}
+
+void D3D11SwapChain::ResizeBuffers(uint32_t bufferCount, uint32_t width, uint32_t height, Format newFormat, SwapChainFlags swapChainFlags)
+{
+	DXGI_FORMAT dxgiFormat = ConvertFormat(newFormat);
+	UINT flags = ConvertSwapChainFlags(swapChainFlags);
+
+	HRESULT hr = swapChain->ResizeBuffers(bufferCount, width, height, dxgiFormat, flags);
+	if (FAILED(hr))
+	{
+		throw std::runtime_error("Failed to resize swapchain buffers");
+	}
+
+	desc.width = width;
+	desc.height = height;
+	desc.format = newFormat;
+	desc.bufferCount = bufferCount;
+	desc.flags = swapChainFlags;
+}
+
+PrismObj<Texture2D> D3D11SwapChain::GetBuffer(size_t index)
+{
+	ComPtr<ID3D11Texture2D> backBuffer;
+	HRESULT hr = swapChain->GetBuffer(static_cast<UINT>(index), IID_PPV_ARGS(&backBuffer));
+	if (FAILED(hr))
+	{
+		throw std::runtime_error("Failed to get swapchain buffer");
+	}
+
+	D3D11_TEXTURE2D_DESC d3dDesc;
+	backBuffer->GetDesc(&d3dDesc);
+
+	Texture2DDesc desc = {};
+	desc.width = d3dDesc.Width;
+	desc.height = d3dDesc.Height;
+	desc.arraySize = d3dDesc.ArraySize;
+	desc.mipLevels = d3dDesc.MipLevels;
+	desc.sampleDesc.count = d3dDesc.SampleDesc.Count;
+	desc.sampleDesc.quality = d3dDesc.SampleDesc.Quality;
+
+	switch (d3dDesc.Format)
+	{
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+		desc.format = Format::RGBA8_UNorm;
+		break;
+	case DXGI_FORMAT_R16G16B16A16_FLOAT:
+		desc.format = Format::RGBA16_Float;
+		break;
+	default:
+		desc.format = Format::Unknown;
+		break;
+	}
+
+	return MakePrismObj<D3D11Texture2D>(desc, std::move(backBuffer));
+}
+
+void D3D11SwapChain::Present(uint32_t interval, PresentFlags flags)
+{
+	UINT presentFlags = 0;
+	if ((static_cast<uint32_t>(flags) & static_cast<uint32_t>(PresentFlags::DoNotWait)) != 0)
+		presentFlags |= DXGI_PRESENT_DO_NOT_WAIT;
+	if ((static_cast<uint32_t>(flags) & static_cast<uint32_t>(PresentFlags::AllowTearing)) != 0)
+		presentFlags |= DXGI_PRESENT_ALLOW_TEARING;
+
+	HRESULT hr = swapChain->Present(interval, presentFlags);
+	if (FAILED(hr) && hr != DXGI_ERROR_WAS_STILL_DRAWING)
+	{
+		throw std::runtime_error("Failed to present swapchain");
+	}
+}
+
+namespace
+{
+	// Helper functions for swap chain creation
+
+	bool CheckSwapChainFormat(ID3D11Device4* device, DXGI_FORMAT format)
+	{
+		UINT formatSupport = 0;
+		HRESULT hr = device->CheckFormatSupport(format, &formatSupport);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+		return (formatSupport & (D3D11_FORMAT_SUPPORT_DISPLAY | D3D11_FORMAT_SUPPORT_RENDER_TARGET)) != 0;
+	}
+
+	DXGI_FORMAT ChooseSwapChainFormat(ID3D11Device4* device, DXGI_FORMAT preferredFormat)
+	{
+		if (CheckSwapChainFormat(device, preferredFormat))
+		{
+			return preferredFormat;
+		}
+		return DXGI_FORMAT_B8G8R8A8_UNORM;
+	}
+
+	DXGI_FORMAT AutoChooseSwapChainFormat(ID3D11Device4* device, IDXGIOutput6* output)
+	{
+		if (!output)
+		{
+			return DXGI_FORMAT_B8G8R8A8_UNORM;
+		}
+
+		DXGI_OUTPUT_DESC1 desc;
+		HRESULT hr = output->GetDesc1(&desc);
+		if (FAILED(hr))
+		{
+			return DXGI_FORMAT_B8G8R8A8_UNORM;
+		}
+
+		if (desc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+		{
+			return ChooseSwapChainFormat(device, DXGI_FORMAT_R10G10B10A2_UNORM);
+		}
+
+		if (desc.ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709)
+		{
+			return ChooseSwapChainFormat(device, DXGI_FORMAT_B8G8R8A8_UNORM);
+		}
+
+		return DXGI_FORMAT_B8G8R8A8_UNORM;
+	}
+
+	ComPtr<IDXGIOutput6> GetOutput(IDXGIAdapter3* adapter)
+	{
+		ComPtr<IDXGIOutput6> selected;
+		ComPtr<IDXGIOutput> output;
+
+		for (UINT outputIndex = 0; SUCCEEDED(adapter->EnumOutputs(outputIndex, &output)); outputIndex++)
+		{
+			ComPtr<IDXGIOutput6> output6;
+			HRESULT hr = output.As(&output6);
+			if (FAILED(hr))
+			{
+				output.Reset();
+				continue;
+			}
+
+			DXGI_OUTPUT_DESC1 desc;
+			hr = output6->GetDesc1(&desc);
+			if (FAILED(hr))
+			{
+				output.Reset();
+				continue;
+			}
+
+			selected = output6;
+
+			if (desc.DesktopCoordinates.top == 0 && desc.DesktopCoordinates.left == 0)
+			{
+				break;
+			}
+
+			output.Reset();
+		}
+
+		return selected;
+	}
+
+	Format ConvertDXGIFormatToPrism(DXGI_FORMAT format)
+	{
+		switch (format)
+		{
+		case DXGI_FORMAT_R8G8B8A8_UNORM:
+			return Format::RGBA8_UNorm;
+		case DXGI_FORMAT_B8G8R8A8_UNORM:
+			return Format::RGBA8_UNorm;
+		case DXGI_FORMAT_R10G10B10A2_UNORM:
+			return Format::RGB10A2_UNorm;
+		case DXGI_FORMAT_R16G16B16A16_FLOAT:
+			return Format::RGBA16_Float;
+		default:
+			return Format::RGBA8_UNorm;
+		}
+	}
+}
+
+PrismObj<SwapChain> D3D11GraphicsDevice::CreateSwapChain(void* windowHandle, const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc)
+{
+	SDL_Window* sdlWindow = static_cast<SDL_Window*>(windowHandle);
+	HWND hwnd = static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(sdlWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+	swapChainDesc.Width = desc.width;
+	swapChainDesc.Height = desc.height;
+	swapChainDesc.Format = ConvertFormat(desc.format);
+	swapChainDesc.Stereo = desc.stereo ? TRUE : FALSE;
+	swapChainDesc.SampleDesc.Count = desc.sampleDesc.count;
+	swapChainDesc.SampleDesc.Quality = desc.sampleDesc.quality;
+	swapChainDesc.BufferUsage = ConvertUsageFlags(desc.bufferUsage);
+	swapChainDesc.BufferCount = desc.bufferCount;
+	swapChainDesc.Scaling = static_cast<DXGI_SCALING>(desc.scaling);
+	swapChainDesc.SwapEffect = static_cast<DXGI_SWAP_EFFECT>(desc.swapEffect);
+	swapChainDesc.AlphaMode = static_cast<DXGI_ALPHA_MODE>(desc.alphaMode);
+	swapChainDesc.Flags = ConvertSwapChainFlags(desc.flags);
+
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreenDescDXGI = {};
+	fullscreenDescDXGI.RefreshRate.Numerator = fullscreenDesc.refreshRate.numerator;
+	fullscreenDescDXGI.RefreshRate.Denominator = fullscreenDesc.refreshRate.denominator;
+	fullscreenDescDXGI.ScanlineOrdering = static_cast<DXGI_MODE_SCANLINE_ORDER>(fullscreenDesc.scanlineOrdering);
+	fullscreenDescDXGI.Scaling = static_cast<DXGI_MODE_SCALING>(fullscreenDesc.scaling);
+	fullscreenDescDXGI.Windowed = fullscreenDesc.windowed ? TRUE : FALSE;
+
+	ComPtr<IDXGISwapChain1> swapChain1;
+	HRESULT hr = factory->CreateSwapChainForHwnd(
+		device.Get(),
+		hwnd,
+		&swapChainDesc,
+		&fullscreenDescDXGI,
+		nullptr,
+		&swapChain1
+	);
+
+	if (FAILED(hr))
+	{
+		throw std::runtime_error("Failed to create swapchain");
+	}
+
+	ComPtr<IDXGISwapChain3> swapChain3;
+	hr = swapChain1.As(&swapChain3);
+	if (FAILED(hr))
+	{
+		throw std::runtime_error("Failed to query IDXGISwapChain3");
+	}
+
+	return MakePrismObj<D3D11SwapChain>(desc, fullscreenDesc, std::move(swapChain3));
+}
+
+PrismObj<SwapChain> D3D11GraphicsDevice::CreateSwapChain(void* windowHandle)
+{
+	SDL_Window* sdlWindow = static_cast<SDL_Window*>(windowHandle);
+	HWND hwnd = static_cast<HWND>(SDL_GetPointerProperty(SDL_GetWindowProperties(sdlWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+
+	int width = 0;
+	int height = 0;
+	SDL_GetWindowSize(sdlWindow, &width, &height);
+
+	ComPtr<IDXGIOutput6> output = GetOutput(adapter.Get());
+	DXGI_FORMAT dxgiFormat = AutoChooseSwapChainFormat(device.Get(), output.Get());
+
+	SwapChainDesc desc = {};
+	desc.width = static_cast<uint32_t>(width);
+	desc.height = static_cast<uint32_t>(height);
+	desc.format = ConvertDXGIFormatToPrism(dxgiFormat);
+	desc.stereo = false;
+	desc.sampleDesc = { 1, 0 };
+	desc.bufferUsage = Usage::RenderTargetOutput;
+	desc.bufferCount = 2;
+	desc.scaling = Scaling::Stretch;
+	desc.swapEffect = SwapEffect::FlipSequential;
+	desc.alphaMode = AlphaMode::Unspecified;
+	desc.flags = static_cast<SwapChainFlags>(static_cast<uint32_t>(SwapChainFlags::AllowModeSwitch) | static_cast<uint32_t>(SwapChainFlags::AllowTearing));
+
+	SwapChainFullscreenDesc fullscreenDesc = {};
+	fullscreenDesc.windowed = true;
+	fullscreenDesc.refreshRate = { 0, 1 };
+	fullscreenDesc.scaling = Scaling::None;
+	fullscreenDesc.scanlineOrdering = ScanlineOrder::Unspecified;
+
+	return CreateSwapChain(windowHandle, desc, fullscreenDesc);
 }
 
 HEXA_PRISM_NAMESPACE_END

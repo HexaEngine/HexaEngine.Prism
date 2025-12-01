@@ -26,19 +26,16 @@ int main()
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
     float scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
-    SDL_Window* window = SDL_CreateWindow("Test", (int)(1280 * scale), (int)(720 * scale), SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    SDL_Window* window = SDL_CreateWindow("Test", static_cast<int>(1280 * scale), static_cast<int>(720 * scale), SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
     PrismObj<GraphicsDevice> device = GraphicsDevice::Create();
-    Texture2DDesc desc = {};
-	desc.format = Format::RGBA8_UNorm;
-	desc.width = 256;
-	desc.height = 256;
-	desc.arraySize = 1;
-	desc.mipLevels = 1;
-	desc.cpuAccessFlags = CpuAccessFlags::None;
-	desc.gpuAccessFlags = GpuAccessFlags::RW;
-	desc.sampleDesc = { 1, 0 };
-    auto tex = device->CreateTexture2D(desc);
+	
+    auto ctx = device->GetImmediateCommandList();
+    auto swapChain = device->CreateSwapChain(window);
+    auto tex = swapChain->GetBuffer(0);
+    RenderTargetViewDesc rtvDesc = {};
+    rtvDesc.dimension = RenderTargetViewDimension::Texture2D;
+    auto rtv = device->CreateRenderTargetView(tex, rtvDesc);
 
 	bool running = true;
     while (running)
@@ -53,7 +50,8 @@ int main()
             }
 		}
 
-
+        ctx->ClearRenderTargetView(rtv, {0.3f,0.3f,0.3f,1});
+		swapChain->Present(1, PresentFlags::None);
     }
     
     return 0;

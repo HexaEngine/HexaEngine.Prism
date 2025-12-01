@@ -3,7 +3,6 @@
 #include <cstdint>
 
 HEXA_PRISM_NAMESPACE_BEGIN
-
 	class SamplerState;
 	class ShaderResourceView;
 	class RenderTargetView;
@@ -1157,6 +1156,123 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		const SamplerDesc& GetDesc() const { return desc; }
 	};
 
+	enum class Usage : uint32_t
+	{
+		None = 0,
+		BackBuffer = 1 << 0,
+		DiscardOnPresent = 1 << 1,
+		ReadOnly = 1 << 2,
+		RenderTargetOutput = 1 << 3,
+		ShaderInput = 1 << 4,
+		Shared = 1 << 5,
+		UnorderedAccess = 1 << 6
+	};
+
+	enum class SwapEffect : uint32_t
+	{
+		Discard = 0,
+		Sequential = 1,
+		FlipSequential = 3,
+		FlipDiscard = 4
+	};
+
+	enum class SwapChainFlags : uint32_t
+	{
+		NonPreRotated = 1,
+		AllowModeSwitch = 2,
+		GDICompatible = 4,
+		RestrictedContent = 8,
+		RestrictedSharedResourceDriver = 16,
+		DisplayOnly = 32,
+		FrameLatencyWaitableObject = 64,
+		ForegroundLayer = 128,
+		FullscreenVideo = 256,
+		YuvVideo = 512,
+		HwProtected = 1024,
+		AllowTearing = 2048,
+		RestrictedToAllHolographicDisplays = 4096
+	};
+
+	enum class Scaling : uint32_t
+	{
+		Stretch = 0,
+		None = 1,
+		AspectRatioStretch = 2
+	};
+
+	enum class AlphaMode : uint32_t
+	{
+		Unspecified = 0,
+		Premultiplied = 1,
+		Straight = 2,
+		Ignore = 3,
+	};
+
+	struct SwapChainDesc
+	{
+		uint32_t width;
+		uint32_t height;
+		Format format;
+		bool stereo;
+		SampleDesc sampleDesc;
+		Usage bufferUsage;
+		uint32_t bufferCount;
+		Scaling scaling;
+		SwapEffect swapEffect;
+		AlphaMode alphaMode;
+		SwapChainFlags flags;
+	};
+
+	struct Rational
+	{
+		uint32_t numerator;
+		uint32_t denominator;
+	};
+
+	enum class ScanlineOrder : uint32_t
+	{
+		Unspecified = 0,
+		Progressive = 1,
+		UpperFieldFirst = 2,
+		LowerFieldFirst = 3
+	};
+
+	struct SwapChainFullscreenDesc 
+	{
+		Rational refreshRate;
+		ScanlineOrder scanlineOrdering;
+		Scaling scaling;
+		bool windowed;
+	};
+
+	enum class PresentFlags
+	{
+		None,
+		DoNotWait = 1 << 0,
+		AllowTearing = 1 << 1,
+	};
+
+	class SwapChain : public PrismObject
+	{
+	protected:
+		SwapChainDesc desc;
+		SwapChainFullscreenDesc fullscreenDesc;
+
+	public:
+		SwapChain(const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc) 
+			: desc(desc), fullscreenDesc(fullscreenDesc)
+		{
+		}
+
+		const SwapChainDesc& GetDesc() const { return desc; }
+		const SwapChainFullscreenDesc& GetFullscreenDesc() const { return fullscreenDesc; }
+
+		virtual void ResizeBuffers(uint32_t bufferCount, uint32_t width, uint32_t height, Format newFormat, SwapChainFlags swapChainFlags) = 0;
+
+		virtual PrismObj<Texture2D> GetBuffer(size_t index) = 0;
+		virtual void Present(uint32_t interval, PresentFlags flags) = 0;
+	};
+
 	enum class DepthStencilViewClearFlags
 	{
 		None = 0,
@@ -1173,6 +1289,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	class CommandList : public PrismObject
 	{
+	public:
 		virtual CommandListType GetType() const noexcept = 0;
 		virtual void Begin() = 0;
 		virtual void End() = 0;
@@ -1215,6 +1332,8 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual PrismObj<GraphicsPipelineState> CreateGraphicsPipelineState(GraphicsPipeline* pipeline, const GraphicsPipelineStateDesc& desc) = 0;
 		virtual PrismObj<ComputePipeline> CreateComputePipeline(const ComputePipelineDesc& desc) = 0;
 		virtual PrismObj<ComputePipelineState> CreateComputePipelineState(ComputePipeline* pipeline, const ComputePipelineStateDesc& desc) = 0;
+		virtual PrismObj<SwapChain> CreateSwapChain(void* windowHandle, const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc) = 0;
+		virtual PrismObj<SwapChain> CreateSwapChain(void* windowHandle) = 0;
 	};
 
 HEXA_PRISM_NAMESPACE_END
