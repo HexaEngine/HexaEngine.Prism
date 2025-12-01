@@ -12,6 +12,7 @@
 #include <string>
 #include <stdexcept>
 #include <iostream>
+#include <array>
 
 #define HEXA_PRISM_NAMESPACE HexaEngine::Prism
 #define HEXA_PRISM_NAMESPACE_BEGIN namespace HexaEngine { namespace Prism {

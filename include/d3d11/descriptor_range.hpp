@@ -3,8 +3,6 @@
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
-using Microsoft::WRL::ComPtr;
-
 struct D3D11ShaderParameter
 {
 	char* name;
@@ -27,16 +25,16 @@ struct D3D11DescriptorRange
 	D3D11DescriptorRange(ShaderStage stage, ShaderParameterType type, const D3D11ShaderParameter* parameters, int parametersLength);
     ~D3D11DescriptorRange();
 
-    ShaderStage stage;
-    ShaderParameterType type;
-    uint32_t startSlot;
-    uint32_t count;
-    void** resources;
-    uint32_t* initialCounts;
+    ShaderStage stage = ShaderStage::Vertex;
+    ShaderParameterType type = ShaderParameterType::CBV;
+    uint32_t startSlot = 0;
+    uint32_t count = 0;
+    void** resources = nullptr;
+    uint32_t* initialCounts = nullptr;
 
     std::vector<ResourceRange> ranges;
-    D3D11ShaderParameter* buckets;
-    uint32_t bucketCount;
+    D3D11ShaderParameter* buckets = nullptr;
+    uint32_t bucketCount = 0;
 
     static uint32_t HashString(const char* str)
     {

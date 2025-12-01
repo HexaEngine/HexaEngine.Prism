@@ -1,4 +1,5 @@
 #include "d3d11/resource_binding_list.hpp"
+#include "d3d11/graphics_pipeline.hpp"
 #include "d3d11/d3d11.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN

@@ -1,14 +1,7 @@
 #pragma once
 #include "descriptor_range.hpp"
-#include "d3d11.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN
-
-enum class PipelineStateFlags
-{
-    None = 0,
-    ReflectVariables = 1 << 0,
-};
 
 struct D3D11ShaderParameterState
 {
@@ -100,6 +93,12 @@ public:
     void UnbindGraphics(const ComPtr<ID3D11DeviceContext3>& context);
     void BindCompute(const ComPtr<ID3D11DeviceContext3>& context);
     void UnbindCompute(const ComPtr<ID3D11DeviceContext3>& context);
+
+	// TODO: Implement iterators
+    iterator_pair GetSRVs() override { return {}; }
+	iterator_pair GetCBVs() override { return {}; }
+	iterator_pair GetUAVs() override { return {}; }
+    iterator_pair GetSamplers() override { return {}; }
 };
 
 HEXA_PRISM_NAMESPACE_END

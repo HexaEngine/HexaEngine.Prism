@@ -1,6 +1,9 @@
 #pragma once
 #include "common.hpp"
 #include "descriptor_range.hpp"
+#include "graphics_pipeline.hpp"
+#include "graphics_pipeline_state.hpp"
+#include "compute_pipeline.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
@@ -120,51 +123,11 @@ public:
 	IDXGISwapChain3* GetSwapChain() const { return swapChain.Get(); }
 };
 
-class D3D11GraphicsPipeline : public GraphicsPipeline
-{
-	friend class D3D11ResourceBindingList;
-protected:
-	D3D11GraphicsDevice* device;
-	ComPtr<ID3D11VertexShader> vs;
-	ComPtr<ID3D11HullShader> hs;
-	ComPtr<ID3D11DomainShader> ds;
-	ComPtr<ID3D11GeometryShader> gs;
-	ComPtr<ID3D11PixelShader> ps;
-
-	PrismObj<Blob> vertexShaderBlob;
-	PrismObj<Blob> hullShaderBlob;
-	PrismObj<Blob> domainShaderBlob;
-	PrismObj<Blob> geometryShaderBlob;
-	PrismObj<Blob> pixelShaderBlob;
-	bool valid;
-
-public:
-	D3D11GraphicsPipeline(D3D11GraphicsDevice* device, const GraphicsPipelineDesc& desc);
-	~D3D11GraphicsPipeline() override = default;
-
-	void Compile();
-	bool IsValid() const noexcept { return valid; }
-};
-
-class D3D11ComputePipeline : public ComputePipeline
-{
-	friend class D3D11ResourceBindingList;
-	D3D11GraphicsDevice* device;
-	ComPtr<ID3D11ComputeShader> cs;
-
-	PrismObj<Blob> computeShaderBlob;
-	bool valid;
-
-public:
-	D3D11ComputePipeline(D3D11GraphicsDevice* device, const ComputePipelineDesc& desc);
-
-	void Compile();
-};
-
 class D3D11CommandList : public CommandList
 {
 	ComPtr<ID3D11DeviceContext4> context;
 	ComPtr<ID3D11CommandList> commandList;
+	PipelineState* currentPSO = nullptr;
 	CommandListType type;
 
 public:
@@ -210,7 +173,7 @@ public:
 	bool Initialize();
 
 	CommandList* GetImmediateCommandList() override;
-	PrismObj<Buffer> CreateBuffer(const BufferDesc& desc) override;
+	PrismObj<Buffer> CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData) override;
 	PrismObj<Texture1D> CreateTexture1D(const Texture1DDesc& desc) override;
 	PrismObj<Texture2D> CreateTexture2D(const Texture2DDesc& desc) override;
 	PrismObj<Texture3D> CreateTexture3D(const Texture3DDesc& desc) override;

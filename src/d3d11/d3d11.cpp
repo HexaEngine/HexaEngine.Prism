@@ -8,55 +8,7 @@ namespace
 {
 	DXGI_FORMAT ConvertFormat(const Format format)
 	{
-		switch (format)
-		{
-		case Format::Unknown:
-			return DXGI_FORMAT_UNKNOWN;
-		case Format::RGBA8_UNorm:
-			return DXGI_FORMAT_R8G8B8A8_UNORM;
-		case Format::RGBA16_UNorm:
-			return DXGI_FORMAT_R16G16B16A16_UNORM;
-		case Format::RGBA32_UNorm:
-			return DXGI_FORMAT_R32G32B32A32_UINT;
-		case Format::RGB10A2_UNorm:
-			return DXGI_FORMAT_R10G10B10A2_UNORM;
-		case Format::RGBA16_Float:
-			return DXGI_FORMAT_R16G16B16A16_FLOAT;
-		case Format::RGBA32_Float:
-			return DXGI_FORMAT_R32G32B32A32_FLOAT;
-		case Format::RGBA8_SNorm:
-			return DXGI_FORMAT_R8G8B8A8_SNORM;
-		case Format::RGBA16_SNorm:
-			return DXGI_FORMAT_R16G16B16A16_SNORM;
-		case Format::RGBA32_SNorm:
-			return DXGI_FORMAT_R32G32B32A32_SINT;
-		case Format::R32_Float:
-			return DXGI_FORMAT_R32_FLOAT;
-		case Format::RG32_Float:
-			return DXGI_FORMAT_R32G32_FLOAT;
-		case Format::RGB32_Float:
-			return DXGI_FORMAT_R32G32B32_FLOAT;
-		case Format::R16_Float:
-			return DXGI_FORMAT_R16_FLOAT;
-		case Format::RG16_Float:
-			return DXGI_FORMAT_R16G16_FLOAT;
-		case Format::R8G8_UNorm:
-			return DXGI_FORMAT_R8G8_UNORM;
-		case Format::BC1_UNorm:
-			return DXGI_FORMAT_BC1_UNORM;
-		case Format::BC2_UNorm:
-			return DXGI_FORMAT_BC2_UNORM;
-		case Format::BC3_UNorm:
-			return DXGI_FORMAT_BC3_UNORM;
-		case Format::BC4_UNorm:
-			return DXGI_FORMAT_BC4_UNORM;
-		case Format::BC5_UNorm:
-			return DXGI_FORMAT_BC5_UNORM;
-		case Format::BC7_UNorm:
-			return DXGI_FORMAT_BC7_UNORM;
-		default:
-			return DXGI_FORMAT_UNKNOWN;
-		}
+		return static_cast<DXGI_FORMAT>(format);
 	}
 
 	D3D11_USAGE ConvertUsage(CpuAccessFlags cpuAccess, GpuAccessFlags gpuAccess)
@@ -208,99 +160,6 @@ D3D11SamplerState::D3D11SamplerState(const SamplerDesc& desc, ComPtr<ID3D11Sampl
 
 // D3D11CommandList Implementation
 
-D3D11GraphicsPipeline::D3D11GraphicsPipeline(D3D11GraphicsDevice* device, const GraphicsPipelineDesc& desc) : GraphicsPipeline(desc), device(device), valid(false)
-{
-	Compile();
-}
-
-namespace
-{
-	template<typename TShaderInterface>
-	bool CompileAndCreateShader(
-		ID3D11Device* device,
-		ShaderSource* source,
-		const char* entryPoint,
-		const char* targetProfile,
-		PrismObj<Blob>& blobOut,
-		ComPtr<TShaderInterface>& shaderOut,
-		HRESULT(ID3D11Device::* createFunc)(const void*, SIZE_T, ID3D11ClassLinkage*, TShaderInterface**)
-	)
-	{
-		if (!source)
-			return true;
-
-		bool ok = D3D11ShaderCompiler::Compile(source, entryPoint, targetProfile, blobOut);
-		if (!ok)
-			return false;
-
-		HRESULT hr = (device->*createFunc)(
-			blobOut->GetData(),
-			blobOut->GetLength(),
-			nullptr,
-			shaderOut.GetAddressOf()
-			);
-
-		return SUCCEEDED(hr);
-	}
-}
-
-void D3D11GraphicsPipeline::Compile()
-{
-	auto dev = device->GetDevice();
-	bool success = true;
-
-	success &= CompileAndCreateShader(
-		dev, desc.vertexShader, desc.vertexEntryPoint, "vs_5_0",
-		vertexShaderBlob, vs,
-		&ID3D11Device::CreateVertexShader
-	);
-
-	success &= CompileAndCreateShader(
-		dev, desc.hullShader, desc.hullEntryPoint, "hs_5_0",
-		hullShaderBlob, hs,
-		&ID3D11Device::CreateHullShader
-	);
-
-	success &= CompileAndCreateShader(
-		dev, desc.domainShader, desc.domainEntryPoint, "ds_5_0",
-		domainShaderBlob, ds,
-		&ID3D11Device::CreateDomainShader
-	);
-
-	success &= CompileAndCreateShader(
-		dev, desc.geometryShader, desc.geometryEntryPoint, "gs_5_0",
-		geometryShaderBlob, gs,
-		&ID3D11Device::CreateGeometryShader
-	);
-
-	success &= CompileAndCreateShader(
-		dev, desc.pixelShader, desc.pixelEntryPoint, "ps_5_0",
-		pixelShaderBlob, ps,
-		&ID3D11Device::CreatePixelShader
-	);
-
-	valid = success;
-}
-
-D3D11ComputePipeline::D3D11ComputePipeline(D3D11GraphicsDevice* device, const ComputePipelineDesc& desc) : ComputePipeline(desc), device(device), valid(false)
-{
-	Compile();
-}
-
-void D3D11ComputePipeline::Compile()
-{
-	auto dev = device->GetDevice();
-	bool success = true;
-
-	success &= CompileAndCreateShader(
-		dev, desc.computeShader, desc.computeEntryPoint, "cs_5_0",
-		computeShaderBlob, cs,
-		&ID3D11Device::CreateComputeShader
-	);
-
-	valid = success;
-}
-
 D3D11CommandList::D3D11CommandList(ComPtr<ID3D11DeviceContext4>&& context, const CommandListType type)
 	: context(std::move(context)), type(type)
 {
@@ -327,8 +186,20 @@ void D3D11CommandList::End()
 
 void D3D11CommandList::SetGraphicsPipelineState(GraphicsPipelineState* state)
 {
-	// TODO: Implement pipeline state setting
-	// This would set all the pipeline state objects (shaders, blend state, rasterizer state, etc.)
+	if (currentPSO)
+	{
+		if (auto oldGraphicsState = dynamic_cast<D3D11GraphicsPipelineState*>(currentPSO))
+		{
+			oldGraphicsState->UnsetState(context.Get());
+		}
+
+	}
+
+	if (state)
+	{
+		auto graphicsState = static_cast<D3D11GraphicsPipelineState*>(state);
+		graphicsState->SetState(context.Get());
+	}
 }
 
 void D3D11CommandList::SetComputePipelineState(ComputePipelineState* state)
@@ -616,7 +487,7 @@ CommandList* D3D11GraphicsDevice::GetImmediateCommandList()
 	return immediateContext.Get();
 }
 
-PrismObj<Buffer> D3D11GraphicsDevice::CreateBuffer(const BufferDesc& desc)
+PrismObj<Buffer> D3D11GraphicsDevice::CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData)
 {
 	D3D11_BUFFER_DESC bufferDesc = {};
 	bufferDesc.ByteWidth = desc.widthInBytes;
@@ -645,8 +516,18 @@ PrismObj<Buffer> D3D11GraphicsDevice::CreateBuffer(const BufferDesc& desc)
 		break;
 	}
 
+	D3D11_SUBRESOURCE_DATA* subresourceDataPtr = nullptr;
+	if (initialData)
+	{
+		D3D11_SUBRESOURCE_DATA subresourceData = {};
+		subresourceData.pSysMem = initialData->data;
+		subresourceData.SysMemPitch = initialData->rowPitch;
+		subresourceData.SysMemSlicePitch = initialData->slicePitch;
+		subresourceDataPtr = &subresourceData;
+	}
+
 	ComPtr<ID3D11Buffer> d3dBuffer;
-	const HRESULT hr = device->CreateBuffer(&bufferDesc, nullptr, &d3dBuffer);
+	const HRESULT hr = device->CreateBuffer(&bufferDesc, subresourceDataPtr, &d3dBuffer);
 	if (FAILED(hr))
 	{
 		return {};
@@ -1162,9 +1043,7 @@ PrismObj<GraphicsPipeline> D3D11GraphicsDevice::CreateGraphicsPipeline(const Gra
 
 PrismObj<GraphicsPipelineState> D3D11GraphicsDevice::CreateGraphicsPipelineState(GraphicsPipeline* pipeline, const GraphicsPipelineStateDesc& desc)
 {
-	// TODO: Implement graphics pipeline state creation
-	// In D3D11, this would involve creating blend state, rasterizer state, depth stencil state
-	return {};
+	return MakePrismObj<D3D11GraphicsPipelineState>(PrismObj<D3D11GraphicsPipeline>(static_cast<D3D11GraphicsPipeline*>(pipeline)), desc);
 }
 
 PrismObj<ComputePipeline> D3D11GraphicsDevice::CreateComputePipeline(const ComputePipelineDesc& desc)
@@ -1223,19 +1102,7 @@ PrismObj<Texture2D> D3D11SwapChain::GetBuffer(size_t index)
 	desc.mipLevels = d3dDesc.MipLevels;
 	desc.sampleDesc.count = d3dDesc.SampleDesc.Count;
 	desc.sampleDesc.quality = d3dDesc.SampleDesc.Quality;
-
-	switch (d3dDesc.Format)
-	{
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		desc.format = Format::RGBA8_UNorm;
-		break;
-	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		desc.format = Format::RGBA16_Float;
-		break;
-	default:
-		desc.format = Format::Unknown;
-		break;
-	}
+	desc.format = static_cast<Format>(d3dDesc.Format);
 
 	return MakePrismObj<D3D11Texture2D>(desc, std::move(backBuffer));
 }
@@ -1341,23 +1208,6 @@ namespace
 
 		return selected;
 	}
-
-	Format ConvertDXGIFormatToPrism(DXGI_FORMAT format)
-	{
-		switch (format)
-		{
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-			return Format::RGBA8_UNorm;
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			return Format::RGBA8_UNorm;
-		case DXGI_FORMAT_R10G10B10A2_UNORM:
-			return Format::RGB10A2_UNorm;
-		case DXGI_FORMAT_R16G16B16A16_FLOAT:
-			return Format::RGBA16_Float;
-		default:
-			return Format::RGBA8_UNorm;
-		}
-	}
 }
 
 PrismObj<SwapChain> D3D11GraphicsDevice::CreateSwapChain(void* windowHandle, const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc)
@@ -1426,7 +1276,7 @@ PrismObj<SwapChain> D3D11GraphicsDevice::CreateSwapChain(void* windowHandle)
 	SwapChainDesc desc = {};
 	desc.width = static_cast<uint32_t>(width);
 	desc.height = static_cast<uint32_t>(height);
-	desc.format = ConvertDXGIFormatToPrism(dxgiFormat);
+	desc.format = static_cast<Format>(dxgiFormat);
 	desc.stereo = false;
 	desc.sampleDesc = { 1, 0 };
 	desc.bufferUsage = Usage::RenderTargetOutput;

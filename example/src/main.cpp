@@ -3,30 +3,17 @@
 #include <SDL3/SDL_video.h>
 #include <SDL3/SDL.h>
 
-#if HEXA_PRISM_WINDOWS
-#include <Windows.h>
-
-void HideConsole()
-{
-    ::ShowWindow(::GetConsoleWindow(), SW_HIDE);
-}
-
-#else
-void HideConsole()
-{
-}
-
-#endif
-
 using namespace HEXA_PRISM_NAMESPACE;
 
 int main()
 {
-    //HideConsole();
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
     float scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
     SDL_Window* window = SDL_CreateWindow("Test", static_cast<int>(1280 * scale), static_cast<int>(720 * scale), SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+
+    int width, height;
+    SDL_GetWindowSize(window, &width, &height);
 
     PrismObj<GraphicsDevice> device = GraphicsDevice::Create();
 	
@@ -75,6 +62,26 @@ int main()
 
 	auto pipeline = device->CreateGraphicsPipeline(pipelineDesc);
 
+	GraphicsPipelineStateDesc psoDesc = {};
+    auto pso = device->CreateGraphicsPipelineState(pipeline, psoDesc);
+
+	BufferDesc vertexBufferDesc = {};
+	vertexBufferDesc.type = BufferType::VertexBuffer;
+	vertexBufferDesc.widthInBytes = sizeof(float) * 7 * 3;
+	vertexBufferDesc.cpuAccessFlags = CpuAccessFlags::None;
+	vertexBufferDesc.gpuAccessFlags = GpuAccessFlags::Immutable;
+
+	SubresourceData initialData = {};
+    float vertexData[] = {
+        // Position         // Color
+         0.0f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+         0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+	};
+
+	initialData.data = vertexData;
+	auto vertexBuffer = device->CreateBuffer(vertexBufferDesc, &initialData);
+
 	bool running = true;
     while (running)
     {
@@ -88,7 +95,13 @@ int main()
             }
 		}
 
-        ctx->ClearRenderTargetView(rtv, {0.3f,0.3f,0.3f,1});
+        ctx->ClearRenderTargetView(rtv, { 0.3f,0.3f,0.3f,1 });
+		ctx->SetVertexBuffer(0, vertexBuffer, sizeof(float) * 7, 0);
+        ctx->SetRenderTarget(rtv, nullptr);
+		ctx->SetViewport({width, height});
+		ctx->SetGraphicsPipelineState(pso);
+		ctx->DrawInstanced(3, 1, 0, 0);
+
 		swapChain->Present(1, PresentFlags::None);
     }
     

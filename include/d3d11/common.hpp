@@ -17,4 +17,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 using Microsoft::WRL::ComPtr;
 
+class D3D11GraphicsDevice;
+class D3D11GraphicsPipelineState;
+
 HEXA_PRISM_NAMESPACE_END
