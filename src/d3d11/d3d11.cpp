@@ -160,6 +160,22 @@ D3D11SamplerState::D3D11SamplerState(const SamplerDesc& desc, ComPtr<ID3D11Sampl
 
 // D3D11CommandList Implementation
 
+void D3D11CommandList::UnsetPipelineState()
+{
+	if (currentPSO)
+	{
+		if (auto oldGraphicsState = dynamic_cast<D3D11GraphicsPipelineState*>(currentPSO))
+		{
+			oldGraphicsState->UnsetState(context.Get());
+		}
+		if (auto oldComputeState = dynamic_cast<D3D11ComputePipelineState*>(currentPSO))
+		{
+			oldComputeState->UnsetState(context.Get());
+		}
+		currentPSO = nullptr;
+	}
+}
+
 D3D11CommandList::D3D11CommandList(ComPtr<ID3D11DeviceContext4>&& context, const CommandListType type)
 	: context(std::move(context)), type(type)
 {
@@ -186,25 +202,24 @@ void D3D11CommandList::End()
 
 void D3D11CommandList::SetGraphicsPipelineState(GraphicsPipelineState* state)
 {
-	if (currentPSO)
-	{
-		if (auto oldGraphicsState = dynamic_cast<D3D11GraphicsPipelineState*>(currentPSO))
-		{
-			oldGraphicsState->UnsetState(context.Get());
-		}
-
-	}
-
+	UnsetPipelineState();
 	if (state)
 	{
-		auto graphicsState = static_cast<D3D11GraphicsPipelineState*>(state);
-		graphicsState->SetState(context.Get());
+		auto d3dState = static_cast<D3D11GraphicsPipelineState*>(state);
+		d3dState->SetState(context.Get());
+		currentPSO = state;
 	}
 }
 
 void D3D11CommandList::SetComputePipelineState(ComputePipelineState* state)
 {
-	// TODO: Implement compute pipeline state setting
+	UnsetPipelineState();
+	if (state)
+	{
+		auto d3dState = static_cast<D3D11ComputePipelineState*>(state);
+		d3dState->SetState(context.Get());
+		currentPSO = state;
+	}
 }
 
 void D3D11CommandList::SetVertexBuffer(const uint32_t slot, Buffer* buffer, const uint32_t stride, const uint32_t offset)
@@ -301,12 +316,12 @@ void D3D11CommandList::SetRenderTargetsAndUnorderedAccessViews(
 void D3D11CommandList::SetViewport(const Viewport& viewport)
 {
 	D3D11_VIEWPORT vp;
-	vp.TopLeftX = viewport.X;
-	vp.TopLeftY = viewport.Y;
-	vp.Width = viewport.Width;
-	vp.Height = viewport.Height;
-	vp.MinDepth = viewport.MinDepth;
-	vp.MaxDepth = viewport.MaxDepth;
+	vp.TopLeftX = viewport.x;
+	vp.TopLeftY = viewport.y;
+	vp.Width = viewport.width;
+	vp.Height = viewport.height;
+	vp.MinDepth = viewport.minDepth;
+	vp.MaxDepth = viewport.maxDepth;
 	context->RSSetViewports(1, &vp);
 }
 
@@ -316,12 +331,12 @@ void D3D11CommandList::SetViewports(const uint32_t viewportCount, const Viewport
 
 	for (uint32_t i = 0; i < viewportCount; i++)
 	{
-		vps[i].TopLeftX = viewports[i].X;
-		vps[i].TopLeftY = viewports[i].Y;
-		vps[i].Width = viewports[i].Width;
-		vps[i].Height = viewports[i].Height;
-		vps[i].MinDepth = viewports[i].MinDepth;
-		vps[i].MaxDepth = viewports[i].MaxDepth;
+		vps[i].TopLeftX = viewports[i].x;
+		vps[i].TopLeftY = viewports[i].y;
+		vps[i].Width = viewports[i].width;
+		vps[i].Height = viewports[i].height;
+		vps[i].MinDepth = viewports[i].minDepth;
+		vps[i].MaxDepth = viewports[i].maxDepth;
 	}
 	context->RSSetViewports(viewportCount, vps);
 }
@@ -1043,19 +1058,17 @@ PrismObj<GraphicsPipeline> D3D11GraphicsDevice::CreateGraphicsPipeline(const Gra
 
 PrismObj<GraphicsPipelineState> D3D11GraphicsDevice::CreateGraphicsPipelineState(GraphicsPipeline* pipeline, const GraphicsPipelineStateDesc& desc)
 {
-	return MakePrismObj<D3D11GraphicsPipelineState>(PrismObj<D3D11GraphicsPipeline>(static_cast<D3D11GraphicsPipeline*>(pipeline)), desc);
+	return MakePrismObj<D3D11GraphicsPipelineState>(PrismObj(static_cast<D3D11GraphicsPipeline*>(pipeline)), desc);
 }
 
 PrismObj<ComputePipeline> D3D11GraphicsDevice::CreateComputePipeline(const ComputePipelineDesc& desc)
 {
-	// TODO: Implement compute pipeline creation
-	return {};
+	return MakePrismObj<D3D11ComputePipeline>(this, desc);
 }
 
 PrismObj<ComputePipelineState> D3D11GraphicsDevice::CreateComputePipelineState(ComputePipeline* pipeline, const ComputePipelineStateDesc& desc)
 {
-	// TODO: Implement compute pipeline state creation
-	return {};
+	return MakePrismObj<D3D11ComputePipelineState>(PrismObj(static_cast<D3D11ComputePipeline*>(pipeline)), desc);
 }
 
 // D3D11SwapChain Implementation

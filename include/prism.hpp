@@ -2,41 +2,10 @@
 #include "common.hpp"
 #include "prism_base.hpp"
 #include "prism_common.hpp"
+#include "prism_graphics_pipeline.hpp"
+#include "prism_compute_pipeline.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN
-	class SamplerState;
-	class ShaderResourceView;
-	class RenderTargetView;
-	class UnorderedAccessView;
-
-	struct Viewport
-	{
-		float X = 0, Y = 0;
-		float Width = 0, Height = 0;
-		float MinDepth = 0, MaxDepth = 1.0f;
-
-		constexpr Viewport() = default;
-
-		constexpr Viewport(float x, float y, float width, float height, float minDepth = 0.0f, float maxDepth = 1.0f)
-			: X(x), Y(y), Width(width), Height(height), MinDepth(minDepth), MaxDepth(maxDepth)
-		{
-		}
-
-		constexpr Viewport(float width, float height)
-			: X(0.0f), Y(0.0f), Width(width), Height(height), MinDepth(0.0f), MaxDepth(1.0f)
-		{
-		}
-
-		constexpr Viewport(int width, int height)
-			: X(0.0f), Y(0.0f), Width(static_cast<float>(width)), Height(static_cast<float>(height)), MinDepth(0.0f), MaxDepth(1.0f)
-		{
-		}
-	};
-
-	struct Color
-	{
-		float r, g, b, a;
-	};
 
 	class Resource : public PrismObject
 	{
@@ -47,6 +16,36 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		const void* data;
 		uint32_t rowPitch;
 		uint32_t slicePitch;
+	};
+
+	enum class BufferType
+	{
+		Default,
+		ConstantBuffer,
+		VertexBuffer,
+		IndexBuffer,
+	};
+
+	struct BufferDesc
+	{
+		BufferType type;
+		uint32_t widthInBytes;
+		uint32_t structureStride;
+		CpuAccessFlags cpuAccessFlags;
+		GpuAccessFlags gpuAccessFlags;
+	};
+
+	class Buffer : public Resource
+	{
+	protected:
+		BufferDesc desc;
+
+		Buffer(const BufferDesc& desc) : desc(desc)
+		{
+		}
+
+	public:
+		const BufferDesc& GetDesc() const { return desc; }
 	};
 
 	struct SampleDesc
@@ -68,9 +67,9 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	class Texture1D : public Resource
 	{
+	protected:
 		Texture1DDesc desc;
 
-	protected:
 		Texture1D(const Texture1DDesc& desc) : desc(desc)
 		{
 		}
@@ -94,9 +93,9 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	class Texture2D : public Resource
 	{
+	protected:
 		Texture2DDesc desc;
 
-	protected:
 		Texture2D(const Texture2DDesc& desc) : desc(desc)
 		{
 		}
@@ -119,570 +118,15 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	class Texture3D : public Resource
 	{
+	protected:
 		Texture3DDesc desc;
 
-	protected:
 		Texture3D(const Texture3DDesc& desc) : desc(desc)
 		{
 		}
 
 	public:
 		const Texture3DDesc& GetDesc() const { return desc; }
-	};
-
-	enum class BufferType
-	{
-		Default,
-		ConstantBuffer,
-		VertexBuffer,
-		IndexBuffer,
-	};
-
-	struct BufferDesc
-	{
-		BufferType type;
-		uint32_t widthInBytes;
-		uint32_t structureStride;
-		CpuAccessFlags cpuAccessFlags;
-		GpuAccessFlags gpuAccessFlags;
-	};
-
-	class Buffer : public Resource
-	{
-		BufferDesc desc;
-
-	protected:
-		Buffer(const BufferDesc& desc) : desc(desc)
-		{
-		}
-
-	public:
-		const BufferDesc& GetDesc() const { return desc; }
-	};
-
-	class ShaderSource : public PrismObject
-	{
-	public:
-		virtual const char* GetIdentifier() = 0;
-		virtual void GetData(uint8_t*& data, size_t& dataLength) = 0;
-	};
-
-	class TextShaderSource : public ShaderSource
-	{
-		std::string identifier;
-		std::string text;
-	public:
-		TextShaderSource(const std::string& identifier, const std::string& text) : identifier(identifier),		 text(text)
-		{
-		}
-
-		const char* GetIdentifier() override
-		{
-			return identifier.c_str();
-		}
-
-		void GetData(uint8_t*& data, size_t& dataLength) override
-		{
-			data = reinterpret_cast<uint8_t*>(text.data());
-			dataLength = text.size();
-		}
-	};
-
-	class Blob : public PrismObject
-	{
-		uint8_t* data;
-		size_t length;
-		bool owns;
-
-	public:
-		Blob() : data(nullptr), length(0), owns(false)
-		{
-		}
-
-		Blob(uint8_t* bytecode, size_t length, bool owns, bool copy = false) : data(bytecode), length(length), owns(owns)
-		{
-			if (copy && length > 0)
-			{
-				data = static_cast<uint8_t*>(PrismAlloc(length));
-				PrismMemoryCopy(data, bytecode, length);
-				this->owns = true;
-			}
-		}
-
-		~Blob() override
-		{
-			if (owns)
-			{
-				PrismFree(data);
-			}
-		}
-
-
-		uint8_t* GetData() const { return data; }
-		size_t GetLength() const { return length; }
-	};
-
-	class Pipeline : public PrismObject
-	{
-	};
-
-	struct BindingValuePair
-	{
-		const char* name;
-		ShaderStage stage;
-		ShaderParameterType type;
-		void* value;
-	};
-
-	class ResourceBindingList
-	{
-	public:
-		using iterator = BindingValuePair*;
-		using iterator_pair = std::pair<iterator, iterator>;
-
-		virtual ~ResourceBindingList() = default;
-
-		virtual Pipeline* GetPipeline() const = 0;
-
-		virtual void SetCBV(const char* name, Buffer* buffer) = 0;
-		virtual void SetSampler(const char* name, SamplerState* sampler) = 0;
-		virtual void SetSRV(const char* name, ShaderResourceView* view) = 0;
-		virtual void SetUAV(const char* name, UnorderedAccessView* view, uint32_t initialCount = static_cast<uint32_t>(-1)) = 0;
-
-		virtual void SetCBV(const char* name, ShaderStage stage, Buffer* buffer) = 0;
-		virtual void SetSampler(const char* name, ShaderStage stage, SamplerState* sampler) = 0;
-		virtual void SetSRV(const char* name, ShaderStage stage, ShaderResourceView* view) = 0;
-		virtual void SetUAV(const char* name, ShaderStage stage, UnorderedAccessView* view, uint32_t initialCount = static_cast<uint32_t>(-1)) = 0;
-
-		virtual iterator_pair GetSRVs() = 0;
-		virtual iterator_pair GetCBVs() = 0;
-		virtual iterator_pair GetUAVs() = 0;
-		virtual iterator_pair GetSamplers() = 0;
-	};
-
-	class PipelineState : public PrismObject
-	{
-	public:
-		virtual ResourceBindingList& GetBindings() = 0;
-	};
-
-	struct GraphicsPipelineDesc
-	{
-		PrismObj<ShaderSource> vertexShader;
-		const char* vertexEntryPoint;
-		PrismObj<ShaderSource> hullShader;
-		const char* hullEntryPoint;
-		PrismObj<ShaderSource> domainShader;
-		const char* domainEntryPoint;
-		PrismObj<ShaderSource> geometryShader;
-		const char* geometryEntryPoint;
-		PrismObj<ShaderSource> pixelShader;
-		const char* pixelEntryPoint;
-	};
-
-	class GraphicsPipeline : public Pipeline
-	{
-	protected:
-		GraphicsPipelineDesc desc;
-	public:
-		GraphicsPipeline(const GraphicsPipelineDesc& desc) : desc(desc) {}
-
-		const GraphicsPipelineDesc& GetDesc() const { return desc; }
-	};
-
-	struct RenderTargetBlendDescription
-	{
-		bool isBlendEnabled = false;
-		bool isLogicOpEnabled = false;
-
-		Blend sourceBlend = Blend::One;
-		Blend destinationBlend = Blend::Zero;
-		BlendOperation blendOp = BlendOperation::Add;
-		Blend sourceBlendAlpha = Blend::One;
-		Blend destinationBlendAlpha = Blend::Zero;
-		BlendOperation blendOpAlpha = BlendOperation::Add;
-
-		LogicOperation logicOp = LogicOperation::Clear;
-		ColorWriteEnable renderTargetWriteMask = ColorWriteEnable::All;
-
-		constexpr RenderTargetBlendDescription() = default;
-	};
-
-	struct BlendDescription
-	{
-		static constexpr size_t SimultaneousRenderTargetCount = (8);
-
-		bool alphaToCoverageEnable = false;
-		bool independentBlendEnable = false;
-		std::array<RenderTargetBlendDescription, SimultaneousRenderTargetCount> renderTargets;
-
-	private:
-		constexpr bool IsBlendEnabled(const RenderTargetBlendDescription& renderTarget)
-		{
-			return renderTarget.blendOpAlpha != BlendOperation::Add
-				|| renderTarget.sourceBlendAlpha != Blend::One
-				|| renderTarget.destinationBlendAlpha != Blend::Zero
-				|| renderTarget.blendOp != BlendOperation::Add
-				|| renderTarget.sourceBlend != Blend::One
-				|| renderTarget.destinationBlend != Blend::Zero;
-		}
-
-	public:
-		constexpr BlendDescription() = default;
-
-		constexpr BlendDescription(Blend sourceBlend, Blend destinationBlend)
-			: BlendDescription(sourceBlend, destinationBlend, sourceBlend, destinationBlend)
-		{
-		}
-
-		constexpr BlendDescription(Blend sourceBlend, Blend destinationBlend, Blend srcBlendAlpha, Blend destBlendAlpha)
-			: BlendDescription()
-		{
-			alphaToCoverageEnable = false;
-			independentBlendEnable = false;
-
-			for (int i = 0; i < SimultaneousRenderTargetCount; i++)
-			{
-				renderTargets[i].sourceBlend = sourceBlend;
-				renderTargets[i].destinationBlend = destinationBlend;
-				renderTargets[i].blendOp = BlendOperation::Add;
-				renderTargets[i].sourceBlendAlpha = srcBlendAlpha;
-				renderTargets[i].destinationBlendAlpha = destBlendAlpha;
-				renderTargets[i].blendOpAlpha = BlendOperation::Add;
-				renderTargets[i].renderTargetWriteMask = ColorWriteEnable::All;
-				renderTargets[i].isBlendEnabled = IsBlendEnabled(renderTargets[i]);
-				renderTargets[i].isLogicOpEnabled = false;
-			}
-		}
-
-		constexpr BlendDescription(Blend sourceBlend, Blend destinationBlend, Blend srcBlendAlpha, Blend destBlendAlpha, BlendOperation blendOperation, BlendOperation blendOperationAlpha)
-			: BlendDescription()
-		{
-			alphaToCoverageEnable = false;
-			independentBlendEnable = false;
-
-			for (size_t i = 0; i < SimultaneousRenderTargetCount; i++)
-			{
-				renderTargets[i].sourceBlend = sourceBlend;
-				renderTargets[i].destinationBlend = destinationBlend;
-				renderTargets[i].blendOp = blendOperation;
-				renderTargets[i].sourceBlendAlpha = srcBlendAlpha;
-				renderTargets[i].destinationBlendAlpha = destBlendAlpha;
-				renderTargets[i].blendOpAlpha = blendOperationAlpha;
-				renderTargets[i].renderTargetWriteMask = ColorWriteEnable::All;
-				renderTargets[i].isBlendEnabled = IsBlendEnabled(renderTargets[i]);
-				renderTargets[i].isLogicOpEnabled = false;
-			}
-		}
-
-		constexpr BlendDescription(Blend sourceBlend, Blend destinationBlend, Blend srcBlendAlpha, Blend destBlendAlpha, BlendOperation blendOperation, BlendOperation blendOperationAlpha, LogicOperation logicOperation)
-			: BlendDescription()
-		{
-			alphaToCoverageEnable = false;
-			independentBlendEnable = false;
-
-			for (size_t i = 0; i < SimultaneousRenderTargetCount; i++)
-			{
-				renderTargets[i].sourceBlend = sourceBlend;
-				renderTargets[i].destinationBlend = destinationBlend;
-				renderTargets[i].blendOp = blendOperation;
-				renderTargets[i].sourceBlendAlpha = srcBlendAlpha;
-				renderTargets[i].destinationBlendAlpha = destBlendAlpha;
-				renderTargets[i].blendOpAlpha = blendOperationAlpha;
-				renderTargets[i].logicOp = logicOperation;
-				renderTargets[i].isLogicOpEnabled = true;
-				renderTargets[i].renderTargetWriteMask = ColorWriteEnable::All;
-				renderTargets[i].isBlendEnabled = IsBlendEnabled(renderTargets[i]);
-			}
-		}
-	};
-
-	namespace BlendDescriptions
-	{
-		static constexpr BlendDescription Opaque = BlendDescription(Blend::One, Blend::Zero);
-		static constexpr BlendDescription AlphaBlend = BlendDescription(Blend::One, Blend::InverseSourceAlpha);
-		static constexpr BlendDescription Additive = BlendDescription(Blend::SourceAlpha, Blend::One);
-		static constexpr BlendDescription NonPremultiplied = BlendDescription(Blend::SourceAlpha, Blend::InverseSourceAlpha);
-	}
-
-	struct RasterizerDescription
-	{
-		static constexpr int DefaultDepthBias = 0;
-		static constexpr float DefaultDepthBiasClamp = 0.0f;
-		static constexpr float DefaultSlopeScaledDepthBias = 0.0f;
-
-		FillMode fillMode = FillMode::Solid;
-		CullMode cullMode = CullMode::Back;
-		bool frontCounterClockwise = false;
-		int depthBias = DefaultDepthBias;
-		float depthBiasClamp = DefaultDepthBiasClamp;
-		float slopeScaledDepthBias = DefaultSlopeScaledDepthBias;
-		bool depthClipEnable = true;
-		bool scissorEnable = false;
-		bool multisampleEnable = true;
-		bool antialiasedLineEnable = false;
-		uint32_t forcedSampleCount = 0;
-		ConservativeRasterizationMode conservativeRaster = ConservativeRasterizationMode::Off;
-
-		constexpr RasterizerDescription() = default;
-
-		constexpr RasterizerDescription(enum CullMode cullMode, enum FillMode fillMode)
-			: fillMode(fillMode), cullMode(cullMode)
-		{
-		}
-
-		constexpr RasterizerDescription(
-			enum CullMode cullMode,
-			enum FillMode fillMode,
-			bool frontCounterClockwise,
-			int depthBias,
-			float depthBiasClamp,
-			float slopeScaledDepthBias,
-			bool depthClipEnable,
-			bool scissorEnable,
-			bool multisampleEnable,
-			bool antialiasedLineEnable)
-			: fillMode(fillMode),
-			  cullMode(cullMode),
-			  frontCounterClockwise(frontCounterClockwise),
-			  depthBias(depthBias),
-			  depthBiasClamp(depthBiasClamp),
-			  slopeScaledDepthBias(slopeScaledDepthBias),
-			  depthClipEnable(depthClipEnable),
-			  scissorEnable(scissorEnable),
-			  multisampleEnable(multisampleEnable),
-			  antialiasedLineEnable(antialiasedLineEnable)
-		{
-		}
-
-		constexpr RasterizerDescription(
-			enum CullMode cullMode,
-			enum FillMode fillMode,
-			bool frontCounterClockwise,
-			int depthBias,
-			float depthBiasClamp,
-			float slopeScaledDepthBias,
-			bool depthClipEnable,
-			bool scissorEnable,
-			bool multisampleEnable,
-			bool antialiasedLineEnable,
-			uint32_t forcedSampleCount,
-			ConservativeRasterizationMode conservativeRasterization)
-			: fillMode(fillMode),
-			  cullMode(cullMode),
-			  frontCounterClockwise(frontCounterClockwise),
-			  depthBias(depthBias),
-			  depthBiasClamp(depthBiasClamp),
-			  slopeScaledDepthBias(slopeScaledDepthBias),
-			  depthClipEnable(depthClipEnable),
-			  scissorEnable(scissorEnable),
-			  multisampleEnable(multisampleEnable),
-			  antialiasedLineEnable(antialiasedLineEnable),
-			  forcedSampleCount(forcedSampleCount),
-			  conservativeRaster(conservativeRasterization)
-		{
-		}
-	};
-
-	namespace RasterizerDescriptions
-	{
-		static constexpr RasterizerDescription CullNone = RasterizerDescription(CullMode::None, FillMode::Solid);
-		static constexpr RasterizerDescription CullFront = RasterizerDescription(CullMode::Front, FillMode::Solid);
-		static constexpr RasterizerDescription CullBack = RasterizerDescription(CullMode::Back, FillMode::Solid);
-		static constexpr RasterizerDescription CullBackScissors = RasterizerDescription(CullMode::Back, FillMode::Solid, false, 0, 0.0f, 0.0f, true, true, true, false);
-		static constexpr RasterizerDescription Wireframe = RasterizerDescription(CullMode::None, FillMode::Wireframe);
-		static constexpr RasterizerDescription CullNoneDepthBias = RasterizerDescription(CullMode::None, FillMode::Solid, false, -1, 0.0f, 1.0f, true, false, false, false);
-		static constexpr RasterizerDescription CullFrontDepthBias = RasterizerDescription(CullMode::Front, FillMode::Solid, false, -1, 0.0f, 1.0f, true, false, false, false);
-		static constexpr RasterizerDescription CullBackDepthBias = RasterizerDescription(CullMode::Back, FillMode::Solid, false, -1, 0.0f, 1.0f, true, false, false, false);
-	}
-
-	struct DepthStencilOperationDescription
-	{
-		StencilOperation stencilFailOp = StencilOperation::Keep;
-		StencilOperation stencilDepthFailOp = StencilOperation::Keep;
-		StencilOperation stencilPassOp = StencilOperation::Keep;
-		ComparisonFunc stencilFunc = ComparisonFunc::Always;
-
-		constexpr DepthStencilOperationDescription() = default;
-
-		constexpr DepthStencilOperationDescription(
-			StencilOperation stencilFailOp,
-			StencilOperation stencilDepthFailOp,
-			StencilOperation stencilPassOp,
-			ComparisonFunc stencilFunc)
-			: stencilFailOp(stencilFailOp),
-			  stencilDepthFailOp(stencilDepthFailOp),
-			  stencilPassOp(stencilPassOp),
-			  stencilFunc(stencilFunc)
-		{
-		}
-	};	
-
-	namespace DepthStencilOperationDescriptions
-	{
-		static constexpr DepthStencilOperationDescription Default = DepthStencilOperationDescription(
-			StencilOperation::Keep,
-			StencilOperation::Keep,
-			StencilOperation::Keep,
-			ComparisonFunc::Always);
-
-		static constexpr DepthStencilOperationDescription DefaultFront = DepthStencilOperationDescription(
-			StencilOperation::Keep,
-			StencilOperation::Increment,
-			StencilOperation::Keep,
-			ComparisonFunc::Always);
-
-		static constexpr DepthStencilOperationDescription DefaultBack = DepthStencilOperationDescription(
-			StencilOperation::Keep,
-			StencilOperation::Decrement,
-			StencilOperation::Keep,
-			ComparisonFunc::Always);
-	}
-
-	struct DepthStencilDescription
-	{
-		static constexpr uint8_t DefaultStencilReadMask = 255;
-		static constexpr uint8_t DefaultStencilWriteMask = 255;
-
-		bool depthEnable = true;
-		DepthWriteMask depthWriteMask = DepthWriteMask::All;
-		ComparisonFunc depthFunc = ComparisonFunc::LessEqual;
-		bool stencilEnable = false;
-		uint8_t stencilReadMask = DefaultStencilReadMask;
-		uint8_t stencilWriteMask = DefaultStencilWriteMask;
-		DepthStencilOperationDescription frontFace;
-		DepthStencilOperationDescription backFace;
-
-		constexpr DepthStencilDescription() = default;
-
-		constexpr DepthStencilDescription(bool depthEnable, DepthWriteMask depthWriteMask, ComparisonFunc depthFunc = ComparisonFunc::LessEqual)
-			: depthEnable(depthEnable),
-			  depthWriteMask(depthWriteMask),
-			  depthFunc(depthFunc),
-			  stencilEnable(false),
-			  stencilReadMask(DefaultStencilReadMask),
-			  stencilWriteMask(DefaultStencilWriteMask),
-			  frontFace(DepthStencilOperationDescriptions::Default),
-			  backFace(DepthStencilOperationDescriptions::Default)
-		{
-		}
-
-		constexpr DepthStencilDescription(bool depthEnable, bool stencilEnable, DepthWriteMask depthWriteMask, ComparisonFunc depthFunc = ComparisonFunc::LessEqual)
-			: depthEnable(depthEnable),
-			  depthWriteMask(depthWriteMask),
-			  depthFunc(depthFunc),
-			  stencilEnable(stencilEnable),
-			  stencilReadMask(DefaultStencilReadMask),
-			  stencilWriteMask(DefaultStencilWriteMask),
-			  frontFace(DepthStencilOperationDescriptions::DefaultFront),
-			  backFace(DepthStencilOperationDescriptions::DefaultBack)
-		{
-		}
-
-		constexpr DepthStencilDescription(
-			bool depthEnable,
-			bool depthWriteEnable,
-			ComparisonFunc depthFunc,
-			bool stencilEnable,
-			uint8_t stencilReadMask,
-			uint8_t stencilWriteMask,
-			StencilOperation frontStencilFailOp,
-			StencilOperation frontStencilDepthFailOp,
-			StencilOperation frontStencilPassOp,
-			ComparisonFunc frontStencilFunc,
-			StencilOperation backStencilFailOp,
-			StencilOperation backStencilDepthFailOp,
-			StencilOperation backStencilPassOp,
-			ComparisonFunc backStencilFunc)
-			: depthEnable(depthEnable),
-			  depthWriteMask(depthWriteEnable ? DepthWriteMask::All : DepthWriteMask::Zero),
-			  depthFunc(depthFunc),
-			  stencilEnable(stencilEnable),
-			  stencilReadMask(stencilReadMask),
-			  stencilWriteMask(stencilWriteMask),
-			  frontFace(frontStencilFailOp, frontStencilDepthFailOp, frontStencilPassOp, frontStencilFunc),
-			  backFace(backStencilFailOp, backStencilDepthFailOp, backStencilPassOp, backStencilFunc)
-		{
-		}
-	};
-
-	namespace DepthStencilDescriptions
-	{
-		static constexpr DepthStencilDescription None = DepthStencilDescription(false, DepthWriteMask::Zero);
-		static constexpr DepthStencilDescription Always = DepthStencilDescription(true, DepthWriteMask::All, ComparisonFunc::Always);
-		static constexpr DepthStencilDescription Default = DepthStencilDescription(true, DepthWriteMask::All);
-		static constexpr DepthStencilDescription DefaultLess = DepthStencilDescription(true, DepthWriteMask::All, ComparisonFunc::Less);
-		static constexpr DepthStencilDescription DefaultStencil = DepthStencilDescription(true, true, DepthWriteMask::All);
-		static constexpr DepthStencilDescription DepthRead = DepthStencilDescription(true, DepthWriteMask::Zero);
-		static constexpr DepthStencilDescription DepthReadEquals = DepthStencilDescription(true, DepthWriteMask::Zero, ComparisonFunc::Equal);
-		static constexpr DepthStencilDescription DepthReverseZ = DepthStencilDescription(true, DepthWriteMask::All, ComparisonFunc::GreaterEqual);
-		static constexpr DepthStencilDescription DepthReadReverseZ = DepthStencilDescription(true, DepthWriteMask::Zero, ComparisonFunc::GreaterEqual);
-	}
-
-	struct InputElementDescription
-	{
-		const char* semanticName;
-		uint32_t semanticIndex;
-		Format format;
-		uint32_t slot;
-		uint32_t alignedByteOffset;
-		InputClassification classification;
-		uint32_t instanceDataStepRate;
-
-		static constexpr uint32_t AppendAligned = static_cast<uint32_t>(-1);
-	};
-
-	struct GraphicsPipelineStateDesc
-	{
-		RasterizerDescription rasterizer = RasterizerDescriptions::CullBack;
-		DepthStencilDescription depthStencil = DepthStencilDescriptions::Default;
-		BlendDescription blend = BlendDescriptions::Opaque;
-		PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
-		Color blendFactor;
-		uint32_t sampleMask = 0xFFFFFFFF;
-		uint32_t stencilRef = 0;
-		const InputElementDescription* inputElements = nullptr;
-		size_t numInputElements = 0;
-		PipelineStateFlags flags = PipelineStateFlags::None;
-	};
-
-	class GraphicsPipelineState : public PipelineState
-	{
-	protected:
-		PrismObj<GraphicsPipeline> pipeline;
-		GraphicsPipelineStateDesc desc;
-
-	public:
-		GraphicsPipelineState(PrismObj<GraphicsPipeline> pipeline, const GraphicsPipelineStateDesc& desc)
-			: pipeline(pipeline), desc(desc)
-		{
-		}
-
-		const GraphicsPipelineStateDesc& GetDesc() const { return desc; }
-		const PrismObj<GraphicsPipeline>& GetPipeline() const { return pipeline; }
-	};
-
-	struct ComputePipelineDesc
-	{
-		PrismObj<ShaderSource> computeShader;
-		const char* computeEntryPoint;
-	};
-
-	class ComputePipeline : public Pipeline
-	{
-	protected:
-		ComputePipelineDesc desc;
-	public:
-		ComputePipeline(const ComputePipelineDesc& desc) : desc(desc) {}
-		const ComputePipelineDesc& GetDesc() const { return desc; }
-	};
-
-	struct ComputePipelineStateDesc
-	{
-	};
-
-	class ComputePipelineState : public PipelineState
-	{
 	};
 
 	class ResourceView : public PrismObject
@@ -779,9 +223,9 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	class RenderTargetView : public ResourceView
 	{
+	protected:
 		RenderTargetViewDesc desc;
 
-	protected:
 		explicit RenderTargetView(const RenderTargetViewDesc& desc) : desc(desc)
 		{
 		}
@@ -911,9 +355,9 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	class ShaderResourceView : public ResourceView
 	{
+	protected:
 		ShaderResourceViewDesc desc;
 
-	protected:
 		explicit ShaderResourceView(const ShaderResourceViewDesc& desc) : desc(desc)
 		{
 		}
@@ -995,9 +439,9 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	class DepthStencilView : public ResourceView
 	{
+	protected:
 		DepthStencilViewDesc desc;
 
-	protected:
 		explicit DepthStencilView(const DepthStencilViewDesc& desc) : desc(desc)
 		{
 		}
@@ -1074,9 +518,9 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	class UnorderedAccessView : public ResourceView
 	{
+	protected:
 		UnorderedAccessViewDesc desc;
 
-	protected:
 		explicit UnorderedAccessView(const UnorderedAccessViewDesc& desc) : desc(desc)
 		{
 		}
@@ -1101,9 +545,9 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	class SamplerState : public PrismObject
 	{
+	protected:
 		SamplerDesc desc;
 
-	protected:
 		explicit SamplerState(const SamplerDesc& desc) : desc(desc)
 		{
 		}

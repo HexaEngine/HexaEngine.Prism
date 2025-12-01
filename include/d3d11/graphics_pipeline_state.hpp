@@ -16,6 +16,7 @@ class D3D11GraphicsPipelineState : public GraphicsPipelineState
 	bool isValid;
 
 	void CreateLayout(const InputElementDescription* inputElements, size_t numInputElements, Blob* signature);
+
 public:
 	D3D11GraphicsPipelineState(const PrismObj<D3D11GraphicsPipeline>& pipeline, const GraphicsPipelineStateDesc& desc);
 

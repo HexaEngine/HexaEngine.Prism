@@ -4,6 +4,7 @@
 #include "graphics_pipeline.hpp"
 #include "graphics_pipeline_state.hpp"
 #include "compute_pipeline.hpp"
+#include "compute_pipeline_state.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
@@ -129,7 +130,7 @@ class D3D11CommandList : public CommandList
 	ComPtr<ID3D11CommandList> commandList;
 	PipelineState* currentPSO = nullptr;
 	CommandListType type;
-
+	void UnsetPipelineState();
 public:
 	D3D11CommandList(ComPtr<ID3D11DeviceContext4>&& context, CommandListType type);
 	~D3D11CommandList() override = default;
