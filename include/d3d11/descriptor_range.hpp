@@ -5,7 +5,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 struct D3D11ShaderParameter
 {
-	char* name;
+    String name;
     uint32_t hash;
     uint32_t index;
     uint32_t size;
@@ -22,19 +22,24 @@ struct D3D11DescriptorRange
     };
 
     D3D11DescriptorRange() = default;
-	D3D11DescriptorRange(ShaderStage stage, ShaderParameterType type, const D3D11ShaderParameter* parameters, int parametersLength);
+	D3D11DescriptorRange(ShaderStage stage, ShaderParameterType type, D3D11ShaderParameter* parameters, int parametersLength);
     ~D3D11DescriptorRange();
+
+    D3D11DescriptorRange(const D3D11DescriptorRange&) = delete;
+    D3D11DescriptorRange& operator=(const D3D11DescriptorRange&) = delete;
+
+    D3D11DescriptorRange(D3D11DescriptorRange&& other) noexcept;
+    D3D11DescriptorRange& operator=(D3D11DescriptorRange&& other) noexcept;
 
     ShaderStage stage = ShaderStage::Vertex;
     ShaderParameterType type = ShaderParameterType::CBV;
     uint32_t startSlot = 0;
     uint32_t count = 0;
-    void** resources = nullptr;
-    uint32_t* initialCounts = nullptr;
+    uarray<void*> resources;
+    uarray<uint32_t> initialCounts;
 
     std::vector<ResourceRange> ranges;
-    D3D11ShaderParameter* buckets = nullptr;
-    uint32_t bucketCount = 0;
+    uarray<D3D11ShaderParameter> buckets;
 
     static uint32_t HashString(const char* str)
     {
@@ -47,9 +52,9 @@ struct D3D11DescriptorRange
         return hash;
     }
 
-    D3D11ShaderParameter GetByName(const char* name) const;
+    D3D11ShaderParameter* GetByName(const char* name) const;
 
-    bool TryGetByName(const char* name, D3D11ShaderParameter& parameter) const;
+    bool TryGetByName(const char* name, D3D11ShaderParameter*& parameter) const;
 
     void SetByName(const char* name, void* resource);
 
@@ -94,15 +99,15 @@ struct D3D11DescriptorRange
         {
             if (currentBucket == nullptr)
             {
-                currentBucket = descriptorRange->buckets;
+                currentBucket = descriptorRange->buckets.data();
                 if (currentBucket == nullptr) 
                     return false;
                 ReadFromBucket();
                 return true;
             }
 
-            auto index = currentBucket - descriptorRange->buckets;
-            if (index == descriptorRange->bucketCount - 1)
+            auto index = currentBucket - descriptorRange->buckets.data();
+            if (index == descriptorRange->buckets.size() - 1)
             {
                 return false;
             }
@@ -113,7 +118,7 @@ struct D3D11DescriptorRange
 
     	void ReadFromBucket()
         {
-            current.name = currentBucket->name;
+            current.name = currentBucket->name.get();
             current.stage = descriptorRange->stage;
             current.type = currentBucket->type;
             current.value = descriptorRange->resources[currentBucket->index];

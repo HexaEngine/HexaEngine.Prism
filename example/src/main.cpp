@@ -35,11 +35,16 @@ int main()
         float4 pos : SV_POSITION;
         float4 color : COLOR;
     };
+	
+	cbuffer c 
+	{
+		float4x4 transform;
+	};
 
     PSInput main(VSInput input)
     {
         PSInput output;
-        output.pos = float4(input.pos, 1.0);
+        output.pos = mul(float4(input.pos, 1.0), transform);
         output.color = input.color;
         return output;
     }

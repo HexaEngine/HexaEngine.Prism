@@ -173,10 +173,8 @@ void D3D11ResourceBindingList::Reflect(const PrismObj<Blob>& shader, ShaderStage
         parameter.stage = stage;
         parameter.type = ConvertShaderInputType(shaderInputBindDesc.Type);
 
-        size_t nameLen = std::strlen(shaderInputBindDesc.Name);
-        parameter.name = static_cast<char*>(PrismAlloc(nameLen + 1));
-        std::memcpy(parameter.name, shaderInputBindDesc.Name, nameLen + 1);
-        parameter.hash = D3D11DescriptorRange::HashString(parameter.name);
+        parameter.name = String(shaderInputBindDesc.Name);
+        parameter.hash = D3D11DescriptorRange::HashString(parameter.name.c_str());
 
         shaderParametersInStage.push_back(parameter);
     }
