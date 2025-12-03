@@ -18,6 +18,10 @@
 #define HEXA_PRISM_NAMESPACE_BEGIN namespace HexaEngine { namespace Prism {
 #define HEXA_PRISM_NAMESPACE_END } }
 
+#ifndef HEXA_MATH_NAMESPACE
+#define HEXA_MATH_NAMESPACE Utils
+#endif
+
 #if defined(_WIN64) || defined(_WIN32)
 #define HEXA_PRISM_WINDOWS 1
 #endif

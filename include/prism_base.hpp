@@ -1,8 +1,118 @@
 #pragma once
 #include "common.hpp"
 
-HEXA_PRISM_NAMESPACE_BEGIN
 
+#ifndef HEXA_MATH_VECTOR_HPP
+#define HEXA_MATH_VECTOR_HPP
+
+namespace HEXA_MATH_NAMESPACE
+{
+#define BINARY_OP_VEC2(op) \
+	constexpr Vector2 operator##op(const Vector2& b) const { return { x##op b.x, y##op b.y }; } \
+	constexpr Vector2& operator##op##=(const Vector2& b) { x##op##= b.x; y##op##= b.y; return *this; }
+
+#define BINARY_OP_VEC3(op) \
+	constexpr Vector3 operator##op(const Vector3& b) const { return { x##op b.x, y##op b.y, z##op b.z }; } \
+	constexpr Vector3& operator##op##=(const Vector3& b) { x##op##= b.x; y##op##= b.y; z##op##= b.z; return *this; }
+
+#define BINARY_OP_VEC4(op) \
+	constexpr Vector4 operator##op(const Vector4& b) const { return { x##op b.x, y##op b.y, z##op b.z, w##op b.w }; } \
+	constexpr Vector4& operator##op##=(const Vector4& b) { x##op##= b.x; y##op##= b.y; z##op##= b.z; w##op##= b.w; return *this; }
+
+#define UNARY_OP_VEC2(op) \
+	constexpr Vector2 operator##op() const { return { op x, op y }; }
+
+#define UNARY_OP_VEC3(op) \
+	constexpr Vector3 operator##op() const { return { op x, op y, op z }; }
+
+#define UNARY_OP_VEC4(op) \
+	constexpr Vector4 operator##op() const { return { op x, op y, op z, op w }; }
+
+	struct Vector2
+	{
+		static constexpr size_t Count = 2;
+
+		float x, y;
+
+		constexpr Vector2() : x(0.0f), y(0.0f) {}
+		constexpr Vector2(float x, float y) : x(x), y(y) {}
+		constexpr Vector2(float v) : x(v), y(v) {}
+
+		BINARY_OP_VEC2(+);
+		BINARY_OP_VEC2(-);
+		BINARY_OP_VEC2(*);
+		BINARY_OP_VEC2(/);
+
+		UNARY_OP_VEC2(-);
+
+		constexpr bool operator==(const Vector2& b) const { return x == b.x && y == b.y; }
+		constexpr bool operator!=(const Vector2& b) const { return !(*this == b); }
+
+		constexpr float& operator[](size_t index) { return (&x)[index]; }
+		constexpr const float& operator[](size_t index) const { return (&x)[index]; }
+	};
+
+	struct Vector3
+	{
+		static constexpr size_t Count = 3;
+
+		float x, y, z;
+
+		constexpr Vector3() : x(0.0f), y(0.0f), z(0.0f) {}
+		constexpr Vector3(float x, float y, float z) : x(x), y(y), z(z) {}
+		constexpr Vector3(float v) : x(v), y(v), z(v) {}
+
+		BINARY_OP_VEC3(+);
+		BINARY_OP_VEC3(-);
+		BINARY_OP_VEC3(*);
+		BINARY_OP_VEC3(/);
+
+		UNARY_OP_VEC3(-);
+
+		constexpr bool operator==(const Vector3& b) const { return x == b.x && y == b.y && z == b.z; }
+		constexpr bool operator!=(const Vector3& b) const { return !(*this == b); }
+
+		constexpr float& operator[](size_t index) { return (&x)[index]; }
+		constexpr const float& operator[](size_t index) const { return (&x)[index]; }
+	};
+
+	struct Vector4
+	{
+		static constexpr size_t Count = 4;
+
+		float x, y, z, w;
+
+		constexpr Vector4() : x(0.0f), y(0.0f), z(0.0f), w(0.0f) {}
+		constexpr Vector4(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
+		constexpr Vector4(float v) : x(v), y(v), z(v), w(v) {}
+
+		BINARY_OP_VEC4(+);
+		BINARY_OP_VEC4(-);
+		BINARY_OP_VEC4(*);
+		BINARY_OP_VEC4(/);
+
+		UNARY_OP_VEC4(-);
+
+		constexpr bool operator==(const Vector4& b) const { return x == b.x && y == b.y && z == b.z && w == b.w; }
+		constexpr bool operator!=(const Vector4& b) const { return !(*this == b); }
+
+		constexpr float& operator[](size_t index) { return (&x)[index]; }
+		constexpr const float& operator[](size_t index) const { return (&x)[index]; }
+	};
+
+#undef BINARY_OP_VEC2
+#undef BINARY_OP_VEC3
+#undef BINARY_OP_VEC4
+
+#undef UNARY_OP_VEC2
+#undef UNARY_OP_VEC3
+#undef UNARY_OP_VEC4
+
+}
+
+#endif
+
+HEXA_PRISM_NAMESPACE_BEGIN
 
 class PrismObject
 {

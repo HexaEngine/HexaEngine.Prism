@@ -359,8 +359,8 @@ namespace DepthStencilDescriptions
 }
 
 struct InputElementDescription
-{
-	const char* semanticName;
+{	
+	std::string semanticName;
 	uint32_t semanticIndex;
 	Format format;
 	uint32_t slot;

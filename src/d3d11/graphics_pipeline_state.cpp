@@ -80,7 +80,7 @@ namespace
 	D3D11_INPUT_ELEMENT_DESC ConvertInputElement(const InputElementDescription& elem)
 	{
 		D3D11_INPUT_ELEMENT_DESC result = {};
-		result.SemanticName = elem.semanticName;
+		result.SemanticName = elem.semanticName.c_str();
 		result.SemanticIndex = elem.semanticIndex;
 		result.Format = static_cast<DXGI_FORMAT>(elem.format);
 		result.InputSlot = elem.slot;
@@ -98,8 +98,8 @@ static bool CanSkipLayout(const InputElementDescription* inputElements, size_t n
 
 	for (size_t i = 0; i < numInputElements; i++)
 	{
-		const char* semanticName = inputElements[i].semanticName;
-		if (strcmp(semanticName, "SV_VertexID") != 0 && strcmp(semanticName, "SV_InstanceID") != 0)
+		auto& semanticName = inputElements[i].semanticName;
+		if (semanticName != "SV_VertexID" && semanticName != "SV_InstanceID")
 		{
 			return false;
 		}
