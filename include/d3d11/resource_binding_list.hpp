@@ -28,7 +28,7 @@ public:
 class D3D11GraphicsPipeline;
 class D3D11ComputePipeline;
 
-class D3D11ResourceBindingList : public ResourceBindingList
+class D3D11ResourceBindingList final : public ResourceBindingList
 {
 private:
     Pipeline* pipeline;

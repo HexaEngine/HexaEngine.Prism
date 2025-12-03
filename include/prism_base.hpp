@@ -996,17 +996,74 @@ class String : public container<char>
 {
 public:
 	constexpr String() = default;
+	
 	String(const char* str)
 	{
-		size_m = std::strlen(str);
-		ptr = PrismAllocT<char>(size_m + 1);
-		std::strcpy(ptr, str);
+		if (str)
+		{
+			size_m = std::strlen(str);
+			ptr = PrismAllocT<char>(size_m + 1);
+			PrismMemoryCopy(ptr, str, size_m);
+			ptr[size_m] = '\0';
+		}
+	}
+
+	String(const String& other)
+	{
+		if (other.ptr && other.size_m > 0)
+		{
+			size_m = other.size_m;
+			ptr = PrismAllocT<char>(size_m + 1);
+			PrismMemoryCopy(ptr, other.ptr, size_m);
+			ptr[size_m] = '\0';
+		}
+	}
+
+	String& operator=(const String& other)
+	{
+		if (this != &other)
+		{
+			if (ptr)
+			{
+				PrismFree(ptr);
+				ptr = nullptr;
+			}
+			
+			if (other.ptr && other.size_m > 0)
+			{
+				size_m = other.size_m;
+				ptr = PrismAllocT<char>(size_m + 1);
+				PrismMemoryCopy(ptr, other.ptr, size_m);
+				ptr[size_m] = '\0';
+			}
+			else
+			{
+				size_m = 0;
+			}
+		}
+		return *this;
+	}
+
+	String(String&& other) noexcept : container<char>(std::move(other))
+	{
+	}
+
+	String& operator=(String&& other) noexcept
+	{
+		container<char>::operator=(std::move(other));
+		return *this;
 	}
 
 	const char* c_str() const
 	{
 		return ptr ? ptr : "";
 	}
+};
+
+class DeviceChild : public PrismObject
+{
+public:
+	virtual void* GetNativePointer() = 0;
 };
 
 HEXA_PRISM_NAMESPACE_END

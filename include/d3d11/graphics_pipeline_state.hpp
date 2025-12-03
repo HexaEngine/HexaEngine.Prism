@@ -5,7 +5,7 @@
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
-class D3D11GraphicsPipelineState : public GraphicsPipelineState
+class D3D11GraphicsPipelineState final : public GraphicsPipelineState
 {
 	ComPtr<ID3D11InputLayout> inputLayout;
 	ComPtr<ID3D11RasterizerState2> rasterizerState;

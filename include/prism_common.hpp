@@ -504,6 +504,11 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		float r, g, b, a;
 	};
 
+	struct Rect
+	{
+		int32_t left, top, right, bottom;
+	};
+
 	class ShaderSource : public PrismObject
 	{
 	public:

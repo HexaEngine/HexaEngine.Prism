@@ -341,14 +341,23 @@ void D3D11CommandList::SetViewports(const uint32_t viewportCount, const Viewport
 	context->RSSetViewports(viewportCount, vps);
 }
 
-void D3D11CommandList::SetScissors(const int32_t x, const int32_t y, const int32_t z, const int32_t w)
+void D3D11CommandList::SetScissorRects(const Rect* rects, const uint32_t rectCount)
 {
-	D3D11_RECT rect;
-	rect.left = x;
-	rect.top = y;
-	rect.right = z;
-	rect.bottom = w;
-	context->RSSetScissorRects(1, &rect);
+	D3D11_RECT d3dRects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+	for (size_t i = 0; i < rectCount; ++i)
+	{
+		d3dRects[i].left = rects[i].left;
+		d3dRects[i].top = rects[i].top;
+		d3dRects[i].right = rects[i].right;
+		d3dRects[i].bottom = rects[i].bottom;
+	}
+
+	context->RSSetScissorRects(rectCount, d3dRects);
+}
+
+void D3D11CommandList::SetPrimitiveTopology(PrimitiveTopology topology)
+{
+	context->IASetPrimitiveTopology(static_cast<D3D11_PRIMITIVE_TOPOLOGY>(topology));
 }
 
 void D3D11CommandList::DrawInstanced(const uint32_t vertexCount, const uint32_t instanceCount, const uint32_t vertexOffset, const uint32_t instanceOffset)
@@ -404,9 +413,190 @@ void D3D11CommandList::ClearDepthStencilView(DepthStencilView* dsv, const DepthS
 		clearFlags |= D3D11_CLEAR_DEPTH;
 	if ((static_cast<uint32_t>(flags) & static_cast<uint32_t>(DepthStencilViewClearFlags::Stencil)) != 0)
 		clearFlags |= D3D11_CLEAR_STENCIL;
+
+	const auto d3d11Dsv = static_cast<ID3D11DepthStencilView*>(dsv->GetNativePointer());
+	context->ClearDepthStencilView(d3d11Dsv, clearFlags, depth, static_cast<UINT8>(stencil));
+}
+
+void D3D11CommandList::ClearUnorderedAccessViewUint(UnorderedAccessView* uav, uint32_t r, uint32_t g, uint32_t b, uint32_t a)
+{
+	const auto d3d11Uav = static_cast<ID3D11UnorderedAccessView*>(uav->GetNativePointer());
+	const UINT clearValues[4] = { r, g, b, a };
+	context->ClearUnorderedAccessViewUint(d3d11Uav, clearValues);
+}
+
+void D3D11CommandList::ClearView(ResourceView* view, const Color& color, const Rect& rect)
+{
+	const float clearColor[4] = { color.r, color.g, color.b, color.a };
 	
-	const auto d3d11Dsv = static_cast<D3D11DepthStencilView*>(dsv);
-	context->ClearDepthStencilView(d3d11Dsv->GetView(), clearFlags, depth, static_cast<UINT8>(stencil));
+	D3D11_RECT d3dRect;
+	d3dRect.left = rect.left;
+	d3dRect.top = rect.top;
+	d3dRect.right = rect.right;
+	d3dRect.bottom = rect.bottom;
+	auto* d3dView = static_cast<ID3D11View*>(view->GetNativePointer());
+	context->ClearView(d3dView, clearColor, &d3dRect, 1);
+}
+
+void D3D11CommandList::CopyResource(Resource* dstResource, Resource* srcResource)
+{
+	context->CopyResource(static_cast<ID3D11Resource*>(dstResource->GetNativePointer()), static_cast<ID3D11Resource*>(srcResource->GetNativePointer()));
+}
+
+void D3D11CommandList::GenerateMips(ShaderResourceView* srv)
+{
+	context->GenerateMips(static_cast<ID3D11ShaderResourceView*>(srv->GetNativePointer()));
+}
+
+void D3D11CommandList::ClearState()
+{
+	context->ClearState();
+}
+
+void D3D11CommandList::Flush()
+{
+	context->Flush();
+}
+
+MappedSubresource D3D11CommandList::Map(Resource* resource, const uint32_t subresource, const MapType mapType, const MapFlags mapFlags)
+{
+	if (!resource)
+	{
+		throw std::invalid_argument("Resource cannot be null");
+	}
+
+	auto* d3dResource = static_cast<ID3D11Resource*>(resource->GetNativePointer());
+
+	// Convert MapType to D3D11_MAP
+	D3D11_MAP d3dMapType;
+	switch (mapType)
+	{
+	case MapType::Read:
+		d3dMapType = D3D11_MAP_READ;
+		break;
+	case MapType::Write:
+		d3dMapType = D3D11_MAP_WRITE;
+		break;
+	case MapType::ReadWrite:
+		d3dMapType = D3D11_MAP_READ_WRITE;
+		break;
+	case MapType::WriteDiscard:
+		d3dMapType = D3D11_MAP_WRITE_DISCARD;
+		break;
+	case MapType::WriteNoOverwrite:
+		d3dMapType = D3D11_MAP_WRITE_NO_OVERWRITE;
+		break;
+	default:
+		throw std::invalid_argument("Invalid map type");
+	}
+
+	// Convert MapFlags to D3D11 flags
+	UINT d3dMapFlags = 0;
+	if ((static_cast<uint32_t>(mapFlags) & static_cast<uint32_t>(MapFlags::DoNotWait)) != 0)
+	{
+		d3dMapFlags |= D3D11_MAP_FLAG_DO_NOT_WAIT;
+	}
+
+	// Map the resource
+	D3D11_MAPPED_SUBRESOURCE mappedResource;
+	const HRESULT hr = context->Map(d3dResource, subresource, d3dMapType, d3dMapFlags, &mappedResource);
+	
+	if (FAILED(hr))
+	{
+		if (hr == DXGI_ERROR_WAS_STILL_DRAWING)
+		{
+			// Resource is still being used by GPU
+			return MappedSubresource{ nullptr, 0, 0 };
+		}
+		throw std::runtime_error("Failed to map resource");
+	}
+
+	// Convert to our MappedSubresource structure
+	MappedSubresource result;
+	result.data = mappedResource.pData;
+	result.rowPitch = mappedResource.RowPitch;
+	result.depthPitch = mappedResource.DepthPitch;
+	
+	return result;
+}
+
+void D3D11CommandList::Unmap(Resource* resource, const uint32_t subresource)
+{
+	if (!resource)
+	{
+		throw std::invalid_argument("Resource cannot be null");
+	}
+
+	auto* d3dResource = static_cast<ID3D11Resource*>(resource->GetNativePointer());
+
+	context->Unmap(d3dResource, subresource);
+}
+
+void D3D11CommandList::BeginQuery(Query* query)
+{
+	context->Begin(static_cast<D3D11Query*>(query)->GetQuery());
+}
+
+void D3D11CommandList::EndQuery(Query* query)
+{
+	context->End(static_cast<D3D11Query*>(query)->GetQuery());
+}
+
+bool D3D11CommandList::QueryGetData(Query* query, void* data, uint32_t size, QueryGetDataFlags flags)
+{
+	UINT d3dFlags = 0;
+	if ((static_cast<uint32_t>(flags) & static_cast<uint32_t>(QueryGetDataFlags::DoNotFlush)) != 0)
+	{
+		d3dFlags |= D3D11_ASYNC_GETDATA_DONOTFLUSH;
+	}
+	const HRESULT hr = context->GetData(static_cast<D3D11Query*>(query)->GetQuery(), data, size, d3dFlags);
+	if (FAILED(hr))
+	{
+		if (hr == S_FALSE)
+		{
+			return false;
+		}
+		throw std::runtime_error("Failed to get query data");
+	}
+	return true;
+}
+
+void D3D11CommandList::BeginEvent(const char* name)
+{
+	if (!name)
+	{
+		context->BeginEventInt(L"", 0);
+		return;
+	}
+
+	// Calculate required buffer size
+	const int required = MultiByteToWideChar(CP_UTF8, 0, name, -1, nullptr, 0);
+	if (required <= 0)
+	{
+		context->BeginEventInt(L"", 0);
+		return;
+	}
+
+	constexpr int STACK_BUFFER_SIZE = 1024;
+	wchar_t stackBuffer[STACK_BUFFER_SIZE];
+	wchar_t* buffer = stackBuffer;
+	std::unique_ptr<wchar_t[]> heapBuffer;
+
+	// Use heap allocation if string is too large for stack buffer
+	if (required > STACK_BUFFER_SIZE)
+	{
+		heapBuffer = std::make_unique<wchar_t[]>(required);
+		buffer = heapBuffer.get();
+	}
+
+	// Convert UTF-8 to UTF-16
+	MultiByteToWideChar(CP_UTF8, 0, name, -1, buffer, required);
+	context->BeginEventInt(buffer, 0);
+}
+
+void D3D11CommandList::EndEvent()
+{
+	context->EndEvent();
 }
 
 // D3D11GraphicsDevice Implementation
@@ -702,25 +892,7 @@ PrismObj<RenderTargetView> D3D11GraphicsDevice::CreateRenderTargetView(Resource*
 		return {};
 	}
 
-	ID3D11Resource* d3dResource = nullptr;
-
-	// Get the native D3D11 resource
-	if (const auto buffer = dynamic_cast<D3D11Buffer*>(resource))
-	{
-		d3dResource = buffer->GetBuffer();
-	}
-	else if (const auto texture1D = dynamic_cast<D3D11Texture1D*>(resource))
-	{
-		d3dResource = texture1D->GetTexture();
-	}
-	else if (const auto texture2D = dynamic_cast<D3D11Texture2D*>(resource))
-	{
-		d3dResource = texture2D->GetTexture();
-	}
-	else if (const auto texture3D = dynamic_cast<D3D11Texture3D*>(resource))
-	{
-		d3dResource = texture3D->GetTexture();
-	}
+	auto* d3dResource = static_cast<ID3D11Resource*>(resource->GetNativePointer());
 
 	if (!d3dResource)
 		return {};
@@ -820,24 +992,7 @@ PrismObj<ShaderResourceView> D3D11GraphicsDevice::CreateShaderResourceView(Resou
 		return {};
 	}
 
-	ID3D11Resource* d3dResource = nullptr;
-
-	if (const auto buffer = dynamic_cast<D3D11Buffer*>(resource))
-	{
-		d3dResource = buffer->GetBuffer();
-	}
-	else if (const auto texture1D = dynamic_cast<D3D11Texture1D*>(resource))
-	{
-		d3dResource = texture1D->GetTexture();
-	}
-	else if (const auto texture2D = dynamic_cast<D3D11Texture2D*>(resource))
-	{
-		d3dResource = texture2D->GetTexture();
-	}
-	else if (const auto texture3D = dynamic_cast<D3D11Texture3D*>(resource))
-	{
-		d3dResource = texture3D->GetTexture();
-	}
+	auto* d3dResource = static_cast<ID3D11Resource*>(resource->GetNativePointer());
 
 	if (!d3dResource)
 		return {};
@@ -906,16 +1061,7 @@ PrismObj<DepthStencilView> D3D11GraphicsDevice::CreateDepthStencilView(Resource*
 		return {};
 	}
 
-	ID3D11Resource* d3dResource = nullptr;
-
-	if (const auto texture1D = dynamic_cast<D3D11Texture1D*>(resource))
-	{
-		d3dResource = texture1D->GetTexture();
-	}
-	else if (const auto texture2D = dynamic_cast<D3D11Texture2D*>(resource))
-	{
-		d3dResource = texture2D->GetTexture();
-	}
+	auto* d3dResource = static_cast<ID3D11Resource*>(resource->GetNativePointer());
 
 	if (!d3dResource)
 		return {};
@@ -982,24 +1128,7 @@ PrismObj<UnorderedAccessView> D3D11GraphicsDevice::CreateUnorderedAccessView(Res
 		return {};
 	}
 
-	ID3D11Resource* d3dResource = nullptr;
-
-	if (const auto buffer = dynamic_cast<D3D11Buffer*>(resource))
-	{
-		d3dResource = buffer->GetBuffer();
-	}
-	else if (const auto texture1D = dynamic_cast<D3D11Texture1D*>(resource))
-	{
-		d3dResource = texture1D->GetTexture();
-	}
-	else if (const auto texture2D = dynamic_cast<D3D11Texture2D*>(resource))
-	{
-		d3dResource = texture2D->GetTexture();
-	}
-	else if (const auto texture3D = dynamic_cast<D3D11Texture3D*>(resource))
-	{
-		d3dResource = texture3D->GetTexture();
-	}
+	auto* d3dResource = static_cast<ID3D11Resource*>(resource->GetNativePointer());
 
 	if (!d3dResource)
 		return {};
@@ -1306,6 +1435,23 @@ PrismObj<SwapChain> D3D11GraphicsDevice::CreateSwapChain(void* windowHandle)
 	fullscreenDesc.scanlineOrdering = ScanlineOrder::Unspecified;
 
 	return CreateSwapChain(windowHandle, desc, fullscreenDesc);
+}
+
+PrismObj<Query> D3D11GraphicsDevice::CreateQuery(const QueryDesc& desc)
+{
+	D3D11_QUERY_DESC1 d3dDesc;
+	d3dDesc.Query = static_cast<D3D11_QUERY>(desc.type);
+	d3dDesc.ContextType = static_cast<D3D11_CONTEXT_TYPE>(desc.contextType);
+	d3dDesc.MiscFlags = static_cast<D3D11_QUERY_MISC_FLAG>(desc.miscFlags);
+
+	ComPtr<ID3D11Query1> query;
+	HRESULT hr = device->CreateQuery1(&d3dDesc, &query);
+	if (FAILED(hr))
+	{
+		return {};
+	}
+
+	return MakePrismObj<D3D11Query>(desc, std::move(query));
 }
 
 HEXA_PRISM_NAMESPACE_END

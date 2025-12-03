@@ -5,7 +5,7 @@
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
-class D3D11ComputePipelineState : public ComputePipelineState
+class D3D11ComputePipelineState final : public ComputePipelineState
 {
 	std::unique_ptr<D3D11ResourceBindingList> bindingList;
 	bool isValid;

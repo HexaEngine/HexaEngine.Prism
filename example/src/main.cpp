@@ -36,7 +36,7 @@ int main()
         float4 color : COLOR;
     };
 	
-	cbuffer c 
+	cbuffer constantBuffer
 	{
 		float4x4 transform;
 	};
@@ -87,6 +87,14 @@ int main()
 	initialData.data = vertexData;
 	auto vertexBuffer = device->CreateBuffer(vertexBufferDesc, &initialData);
 
+    BufferDesc constantBufferDesc = {};
+	constantBufferDesc.type = BufferType::ConstantBuffer;
+	constantBufferDesc.widthInBytes = sizeof(float) * 16;
+	constantBufferDesc.cpuAccessFlags = CpuAccessFlags::Write;
+	constantBufferDesc.gpuAccessFlags = GpuAccessFlags::None;
+	auto constantBuffer = device->CreateBuffer(constantBufferDesc);
+    pso->GetBindings().SetCBV("constantBuffer", constantBuffer);
+
 	bool running = true;
     while (running)
     {
@@ -100,6 +108,16 @@ int main()
             }
 		}
 
+        float transformData[] =
+        {
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 1.0f
+        };
+
+        ctx->WriteArray(constantBuffer, transformData, 16);
+
         ctx->ClearRenderTargetView(rtv, { 0.3f,0.3f,0.3f,1 });
 		ctx->SetVertexBuffer(0, vertexBuffer, sizeof(float) * 7, 0);
         ctx->SetRenderTarget(rtv, nullptr);
@@ -107,7 +125,7 @@ int main()
 		ctx->SetGraphicsPipelineState(pso);
 		ctx->DrawInstanced(3, 1, 0, 0);
 
-		swapChain->Present(1, PresentFlags::None);
+		swapChain->Present(0, PresentFlags::None);
     }
     
     return 0;

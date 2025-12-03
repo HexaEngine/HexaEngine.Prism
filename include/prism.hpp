@@ -7,7 +7,14 @@
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
-	class Resource : public PrismObject
+	enum class BackendType
+	{
+		D3D11,
+		D3D12,
+		Vulkan,
+	};
+
+	class Resource : public DeviceChild
 	{
 	};
 
@@ -16,6 +23,28 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		const void* data;
 		uint32_t rowPitch;
 		uint32_t slicePitch;
+	};
+
+	struct MappedSubresource
+	{
+		void* data;
+		uint32_t rowPitch;
+		uint32_t depthPitch;
+	};
+
+	enum class MapType : uint8_t
+	{
+		Read = 1,
+		Write = 2,
+		ReadWrite = 3,
+		WriteDiscard = 4,
+		WriteNoOverwrite = 5,
+	};
+
+	enum class MapFlags : uint32_t
+	{
+		None = 0,
+		DoNotWait = 0x100000,
 	};
 
 	enum class BufferType
@@ -129,7 +158,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		const Texture3DDesc& GetDesc() const { return desc; }
 	};
 
-	class ResourceView : public PrismObject
+	class ResourceView : public DeviceChild
 	{
 	};
 
@@ -543,7 +572,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		float maxLOD;
 	};
 
-	class SamplerState : public PrismObject
+	class SamplerState : public DeviceChild
 	{
 	protected:
 		SamplerDesc desc;
@@ -606,7 +635,66 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual void Present(uint32_t interval, PresentFlags flags) = 0;
 	};
 
-	class CommandList : public PrismObject
+	enum class QueryType
+	{
+		Event,
+		Occlusion,
+		Timestamp,
+		TimestampDisjoint,
+		PipelineStatistics,
+		OcclusionPredicate,
+		SOStatistics,
+		SOOverflowPredicate,
+		SOStatisticsStream0,
+		SOOverflowPredicateStream0,
+		SOStatisticsStream1,
+		SOOverflowPredicateStream1,
+		SOStatisticsStream2,
+		SOOverflowPredicateStream2,
+		SOStatisticsStream3,
+		SOOverflowPredicateStream3,
+	};
+
+	enum class ContextType
+	{
+		All = 0,
+		Graphics = 1,
+		Compute = 2,
+		Copy = 3,
+		Video = 4,
+	};
+
+	enum class QueryMiscFlags
+	{
+		None,
+		PredicateHint = 1,
+	};
+
+	struct QueryDesc
+	{
+		QueryType type;
+		ContextType contextType = ContextType::All;
+		QueryMiscFlags miscFlags = QueryMiscFlags::None;
+	};
+
+	class Query : public DeviceChild
+	{
+		QueryDesc desc;
+	public:
+		Query(const QueryDesc& desc) : desc(desc)
+		{
+		}
+
+		const QueryDesc& GetDesc() const { return desc; }
+	};
+
+	enum class QueryGetDataFlags
+	{
+		None,
+		DoNotFlush = 1,
+	};
+
+	class CommandList : public DeviceChild
 	{
 	public:
 		virtual CommandListType GetType() const noexcept = 0;
@@ -620,7 +708,8 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual void SetRenderTargetsAndUnorderedAccessViews(uint32_t count, RenderTargetView** views, DepthStencilView* depthStencilView, uint32_t uavSlot, uint32_t uavCount, UnorderedAccessView** uavs, uint32_t* pUavInitialCount) = 0;
 		virtual void SetViewport(const Viewport& viewport) = 0;
 		virtual void SetViewports(uint32_t viewportCount, const Viewport* viewports) = 0;
-		virtual void SetScissors(int32_t x, int32_t y, int32_t z, int32_t w) = 0;
+		virtual void SetPrimitiveTopology(PrimitiveTopology topology) = 0;
+		virtual void SetScissorRects(const Rect* rects, uint32_t rectCount) = 0;
 		virtual void DrawInstanced(uint32_t vertexCount, uint32_t instanceCount, uint32_t vertexOffset, uint32_t instanceOffset) = 0;
 		virtual void DrawIndexedInstanced(uint32_t indexCount, uint32_t instanceCount, uint32_t indexOffset, int32_t vertexOffset, uint32_t instanceOffset) = 0;
 		virtual void DrawIndexedInstancedIndirect(Buffer* bufferForArgs, uint32_t alignedByteOffsetForArgs) = 0;
@@ -630,6 +719,36 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual void ExecuteCommandList(CommandList* commandList) = 0;
 		virtual void ClearRenderTargetView(RenderTargetView* rtv, const Color& color) = 0;
 		virtual void ClearDepthStencilView(DepthStencilView* dsv, DepthStencilViewClearFlags flags, float depth, char stencil) = 0;
+		virtual void ClearUnorderedAccessViewUint(UnorderedAccessView* uav, uint32_t r, uint32_t g, uint32_t b, uint32_t a) = 0;
+		virtual void ClearView(ResourceView* view, const Color& color, const Rect& rect) = 0;
+		virtual void CopyResource(Resource* dstResource, Resource* srcResource) = 0;
+		virtual void GenerateMips(ShaderResourceView* srv) = 0;
+		virtual void ClearState() = 0;
+		virtual void Flush() = 0;
+		virtual MappedSubresource Map(Resource* resource, uint32_t subresource, MapType mapType, MapFlags mapFlags) = 0;
+		virtual void Unmap(Resource* resource, uint32_t subresource) = 0;
+		virtual void BeginQuery(Query* query) = 0;
+		virtual void EndQuery(Query* query) = 0;
+		virtual bool QueryGetData(Query* query, void* data, uint32_t size, QueryGetDataFlags flags = QueryGetDataFlags::None) = 0;
+
+		virtual void BeginEvent(const char* name) = 0;
+		virtual void EndEvent() = 0;
+
+		template<typename T>
+		void Write(Resource* resource, const T& data, uint32_t offset = 0)
+		{
+			MappedSubresource mapped = Map(resource, 0, MapType::WriteDiscard, MapFlags::None);
+			std::memcpy(static_cast<uint8_t*>(mapped.data) + offset, &data, sizeof(T));
+			Unmap(resource, 0);
+		}
+
+		template<typename T>
+		void WriteArray(Resource* resource, const T* data, const uint32_t count = 0, uint32_t offset = 0)
+		{
+			MappedSubresource mapped = Map(resource, 0, MapType::WriteDiscard, MapFlags::None);
+			std::memcpy(static_cast<uint8_t*>(mapped.data) + offset, data, sizeof(T) * count);
+			Unmap(resource, 0);
+		}
 	};
 
 	class GraphicsDevice : public PrismObject
@@ -653,6 +772,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual PrismObj<ComputePipelineState> CreateComputePipelineState(ComputePipeline* pipeline, const ComputePipelineStateDesc& desc) = 0;
 		virtual PrismObj<SwapChain> CreateSwapChain(void* windowHandle, const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc) = 0;
 		virtual PrismObj<SwapChain> CreateSwapChain(void* windowHandle) = 0;
+		virtual PrismObj<Query> CreateQuery(const QueryDesc& desc) = 0;
 	};
 
 HEXA_PRISM_NAMESPACE_END

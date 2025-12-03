@@ -19,6 +19,7 @@ public:
 	~D3D11Buffer() override = default;
 
 	ID3D11Buffer* GetBuffer() const { return buffer.Get(); }
+	void* GetNativePointer() override { return buffer.Get(); }
 };
 
 class D3D11Texture1D : public Texture1D
@@ -30,6 +31,7 @@ public:
 	~D3D11Texture1D() override = default;
 
 	ID3D11Texture1D* GetTexture() const { return texture.Get(); }
+	void* GetNativePointer() override { return texture.Get(); }
 };
 
 class D3D11Texture2D : public Texture2D
@@ -41,6 +43,7 @@ public:
 	~D3D11Texture2D() override = default;
 
 	ID3D11Texture2D* GetTexture() const { return texture.Get(); }
+	void* GetNativePointer() override { return texture.Get(); }
 };
 
 class D3D11Texture3D : public Texture3D
@@ -52,6 +55,7 @@ public:
 	~D3D11Texture3D() override = default;
 
 	ID3D11Texture3D* GetTexture() const { return texture.Get(); }
+	void* GetNativePointer() override { return texture.Get(); }
 };
 
 class D3D11RenderTargetView : public RenderTargetView
@@ -63,6 +67,7 @@ public:
 	~D3D11RenderTargetView() override = default;
 
 	ID3D11RenderTargetView* GetView() const { return view.Get(); }
+	void* GetNativePointer() override { return view.Get(); }
 };
 
 class D3D11ShaderResourceView : public ShaderResourceView
@@ -74,6 +79,7 @@ public:
 	~D3D11ShaderResourceView() override = default;
 
 	ID3D11ShaderResourceView* GetView() const { return view.Get(); }
+	void* GetNativePointer() override { return view.Get(); }
 };
 
 class D3D11DepthStencilView : public DepthStencilView
@@ -85,6 +91,7 @@ public:
 	~D3D11DepthStencilView() override = default;
 
 	ID3D11DepthStencilView* GetView() const { return view.Get(); }
+	void* GetNativePointer() override { return view.Get(); }
 };
 
 class D3D11UnorderedAccessView : public UnorderedAccessView
@@ -96,6 +103,7 @@ public:
 	~D3D11UnorderedAccessView() override = default;
 
 	ID3D11UnorderedAccessView* GetView() const { return view.Get(); }
+	void* GetNativePointer() override { return view.Get(); }
 };
 
 class D3D11SamplerState : public SamplerState
@@ -107,6 +115,7 @@ public:
 	~D3D11SamplerState() override = default;
 
 	ID3D11SamplerState* GetSamplerState() const { return samplerState.Get(); }
+	void* GetNativePointer() override { return samplerState.Get(); }
 };
 
 class D3D11SwapChain : public SwapChain
@@ -122,6 +131,19 @@ public:
 	void Present(uint32_t interval, PresentFlags flags) override;
 
 	IDXGISwapChain3* GetSwapChain() const { return swapChain.Get(); }
+};
+
+class D3D11Query : public Query
+{
+protected:
+	ComPtr<ID3D11Query1> query;
+public:
+	D3D11Query(const QueryDesc& desc, ComPtr<ID3D11Query1>&& query) : Query(desc), query(std::move(query))
+	{
+	}
+	~D3D11Query() override = default;
+	ID3D11Query1* GetQuery() const { return query.Get(); }
+	void* GetNativePointer() override { return query.Get(); }
 };
 
 class D3D11CommandList : public CommandList
@@ -146,7 +168,8 @@ public:
 	void SetRenderTargetsAndUnorderedAccessViews(uint32_t count, RenderTargetView** views, DepthStencilView* depthStencilView, uint32_t uavSlot, uint32_t uavCount, UnorderedAccessView** uavs, uint32_t* pUavInitialCount) override;
 	void SetViewport(const Viewport& viewport) override;
 	void SetViewports(uint32_t viewportCount, const Viewport* viewports) override;
-	void SetScissors(int32_t x, int32_t y, int32_t z, int32_t w) override;
+	void SetScissorRects(const Rect* rects, uint32_t rectCount) override;
+	void SetPrimitiveTopology(PrimitiveTopology topology) override;
 	void DrawInstanced(uint32_t vertexCount, uint32_t instanceCount, uint32_t vertexOffset, uint32_t instanceOffset) override;
 	void DrawIndexedInstanced(uint32_t indexCount, uint32_t instanceCount, uint32_t indexOffset, int32_t vertexOffset, uint32_t instanceOffset) override;
 	void DrawIndexedInstancedIndirect(Buffer* bufferForArgs, uint32_t alignedByteOffsetForArgs) override;
@@ -156,8 +179,23 @@ public:
 	void ExecuteCommandList(CommandList* commandList) override;
 	void ClearRenderTargetView(RenderTargetView* rtv, const Color& color) override;
 	void ClearDepthStencilView(DepthStencilView* dsv, DepthStencilViewClearFlags flags, float depth, char stencil) override;
+	void ClearUnorderedAccessViewUint(UnorderedAccessView* uav, uint32_t r, uint32_t g, uint32_t b, uint32_t a) override;
+	void ClearView(ResourceView* view, const Color& color, const Rect& rect) override;
+	void CopyResource(Resource* dstResource, Resource* srcResource) override;
+	void GenerateMips(ShaderResourceView* srv) override;
+	void ClearState() override;
+	void Flush() override;
+	MappedSubresource Map(Resource* resource, uint32_t subresource, MapType mapType, MapFlags mapFlags) override;
+	void Unmap(Resource* resource, uint32_t subresource) override;
+	void BeginQuery(Query* query) override;
+	void EndQuery(Query* query) override;
+	bool QueryGetData(Query* query, void* data, uint32_t size, QueryGetDataFlags flags = QueryGetDataFlags::None) override;
+
+	void BeginEvent(const char* name) override;
+	void EndEvent() override;
 
 	ID3D11DeviceContext4* GetContext() const { return context.Get(); }
+	void* GetNativePointer() override { return context.Get(); }
 };
 
 class D3D11GraphicsDevice : public GraphicsDevice
@@ -190,6 +228,7 @@ public:
 	PrismObj<ComputePipelineState> CreateComputePipelineState(ComputePipeline* pipeline, const ComputePipelineStateDesc& desc) override;
 	PrismObj<SwapChain> CreateSwapChain(void* windowHandle, const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc) override;
 	PrismObj<SwapChain> CreateSwapChain(void* windowHandle) override;
+	PrismObj<Query> CreateQuery(const QueryDesc& desc) override;
 
 	ID3D11Device4* GetDevice() const { return device.Get(); }
 	IDXGIFactory4* GetFactory() const { return factory.Get(); }

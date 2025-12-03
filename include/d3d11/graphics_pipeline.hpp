@@ -3,7 +3,7 @@
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
-class D3D11GraphicsPipeline : public GraphicsPipeline
+class D3D11GraphicsPipeline final : public GraphicsPipeline
 {
 	friend class D3D11ResourceBindingList;
 	friend class D3D11GraphicsPipelineState;
