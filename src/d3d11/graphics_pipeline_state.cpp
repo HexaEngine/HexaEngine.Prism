@@ -89,23 +89,23 @@ namespace
 		result.InstanceDataStepRate = elem.instanceDataStepRate;
 		return result;
 	}
-}
 
-static bool CanSkipLayout(const InputElementDescription* inputElements, size_t numInputElements)
-{
-	if (!inputElements || numInputElements == 0)
-		return true;
-
-	for (size_t i = 0; i < numInputElements; i++)
+	bool CanSkipLayout(const InputElementDescription* inputElements, size_t numInputElements)
 	{
-		auto& semanticName = inputElements[i].semanticName;
-		if (semanticName != "SV_VertexID" && semanticName != "SV_InstanceID")
-		{
-			return false;
-		}
-	}
+		if (!inputElements || numInputElements == 0)
+			return true;
 
-	return true;
+		for (size_t i = 0; i < numInputElements; i++)
+		{
+			auto& semanticName = inputElements[i].semanticName;
+			if (semanticName != "SV_VertexID" && semanticName != "SV_InstanceID")
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
 }
 
 void D3D11GraphicsPipelineState::CreateLayout(const InputElementDescription* inputElements, size_t numInputElements, Blob* signature)
