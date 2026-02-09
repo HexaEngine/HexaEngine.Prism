@@ -209,7 +209,7 @@ public:
 	D3D11GraphicsDevice() = default;
 	~D3D11GraphicsDevice() override = default;
 
-	bool Initialize();
+	bool Initialize(GraphicsDeviceFlags flags);
 
 	CommandList* GetImmediateCommandList() override;
 	PrismObj<Buffer> CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData) override;

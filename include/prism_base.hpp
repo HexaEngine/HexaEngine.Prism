@@ -8,25 +8,25 @@
 namespace HEXA_MATH_NAMESPACE
 {
 #define BINARY_OP_VEC2(op) \
-	constexpr Vector2 operator##op(const Vector2& b) const { return { x##op b.x, y##op b.y }; } \
-	constexpr Vector2& operator##op##=(const Vector2& b) { x##op##= b.x; y##op##= b.y; return *this; }
+	constexpr Vector2 operator op(const Vector2& b) const { return { x op b.x, y op b.y }; } \
+	constexpr Vector2& operator op##=(const Vector2& b) { x op##= b.x; y op##= b.y; return *this; }
 
 #define BINARY_OP_VEC3(op) \
-	constexpr Vector3 operator##op(const Vector3& b) const { return { x##op b.x, y##op b.y, z##op b.z }; } \
-	constexpr Vector3& operator##op##=(const Vector3& b) { x##op##= b.x; y##op##= b.y; z##op##= b.z; return *this; }
+	constexpr Vector3 operator op(const Vector3& b) const { return { x op b.x, y op b.y, z op b.z }; } \
+	constexpr Vector3& operator op##=(const Vector3& b) { x op##= b.x; y op##= b.y; z op##= b.z; return *this; }
 
 #define BINARY_OP_VEC4(op) \
-	constexpr Vector4 operator##op(const Vector4& b) const { return { x##op b.x, y##op b.y, z##op b.z, w##op b.w }; } \
-	constexpr Vector4& operator##op##=(const Vector4& b) { x##op##= b.x; y##op##= b.y; z##op##= b.z; w##op##= b.w; return *this; }
+	constexpr Vector4 operator op(const Vector4& b) const { return { x op b.x, y op b.y, z op b.z, w op b.w }; } \
+	constexpr Vector4& operator op##=(const Vector4& b) { x op##= b.x; y op##= b.y; z op##= b.z; w op##= b.w; return *this; }
 
 #define UNARY_OP_VEC2(op) \
-	constexpr Vector2 operator##op() const { return { op x, op y }; }
+	constexpr Vector2 operator op() const { return { op x, op y }; }
 
 #define UNARY_OP_VEC3(op) \
-	constexpr Vector3 operator##op() const { return { op x, op y, op z }; }
+	constexpr Vector3 operator op() const { return { op x, op y, op z }; }
 
 #define UNARY_OP_VEC4(op) \
-	constexpr Vector4 operator##op() const { return { op x, op y, op z, op w }; }
+	constexpr Vector4 operator op() const { return { op x, op y, op z, op w }; }
 
 	struct Vector2
 	{
@@ -496,7 +496,8 @@ inline void PrismMemoryCopyT(T* dst, const T* src, size_t count)
 template <typename T, typename... TArgs>
 [[nodiscard]] inline PrismObj<T> MakePrismObj(TArgs&&... args)
 {
-	T* obj = new T(std::forward<TArgs>(args)...); // TODO: Change to custom allocator solution.
+	T* mem = PrismAllocT<T>(1);
+	T* obj = new(mem) T(std::forward<TArgs>(args)...);
 	return PrismObj<T>(obj, false);
 }
 

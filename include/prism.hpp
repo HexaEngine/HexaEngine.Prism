@@ -751,10 +751,21 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		}
 	};
 
+	enum class GraphicsDeviceFlags : uint32_t
+	{
+		None = 0,
+		Win32 = 1 << 0,
+		X11 = 1 << 1,
+		Wayland = 1 << 2,
+		Debug = 1 << 16,
+	};
+
+	HEXA_PRISM_DEFINE_FLAG_OPERATORS(GraphicsDeviceFlags);
+
 	class GraphicsDevice : public PrismObject
 	{
 	public:
-		static PrismObj<GraphicsDevice> Create();
+		static PrismObj<GraphicsDevice> Create(BackendType type, GraphicsDeviceFlags flags);
 		virtual CommandList* GetImmediateCommandList() = 0;
 		virtual PrismObj<Buffer> CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData = nullptr) = 0;
 		virtual PrismObj<Texture1D> CreateTexture1D(const Texture1DDesc& desc) = 0;

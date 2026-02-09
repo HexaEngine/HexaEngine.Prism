@@ -463,8 +463,8 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	enum class CommandListType : uint8_t
 	{
-		Immediate = 0,
-		Deferred = 1,
+		Direct = 0,
+		Bundle = 1,
 	};
 
 	enum class PipelineStateFlags : uint8_t

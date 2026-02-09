@@ -188,11 +188,13 @@ CommandListType D3D11CommandList::GetType() const noexcept
 
 void D3D11CommandList::Begin()
 {
+	if (type == CommandListType::Direct) return;
 	commandList.Reset();
 }
 
 void D3D11CommandList::End()
 {
+	if (type == CommandListType::Direct) return;
 	const auto hr = context->FinishCommandList(FALSE, &commandList);
 	if (FAILED(hr))
 	{
@@ -601,7 +603,7 @@ void D3D11CommandList::EndEvent()
 
 // D3D11GraphicsDevice Implementation
 
-bool D3D11GraphicsDevice::Initialize()
+bool D3D11GraphicsDevice::Initialize(GraphicsDeviceFlags flags)
 {
 	HRESULT hr;
 
@@ -682,7 +684,7 @@ bool D3D11GraphicsDevice::Initialize()
 		return false;
 	}
 
-	immediateContext = MakePrismObj<D3D11CommandList>(std::move(ctx), CommandListType::Immediate);
+	immediateContext = MakePrismObj<D3D11CommandList>(std::move(ctx), CommandListType::Direct);
 
 	return true;
 }
@@ -828,7 +830,7 @@ PrismObj<CommandList> D3D11GraphicsDevice::CreateCommandList()
 		return {};
 	}
 
-	return MakePrismObj<D3D11CommandList>(std::move(deferredContext4), CommandListType::Deferred);
+	return MakePrismObj<D3D11CommandList>(std::move(deferredContext4), CommandListType::Bundle);
 }
 
 PrismObj<RenderTargetView> D3D11GraphicsDevice::CreateRenderTargetView(Resource* resource, const RenderTargetViewDesc& desc)

@@ -15,7 +15,7 @@ int main()
     int width, height;
     SDL_GetWindowSize(window, &width, &height);
 
-    PrismObj<GraphicsDevice> device = GraphicsDevice::Create();
+    PrismObj<GraphicsDevice> device = GraphicsDevice::Create(BackendType::Vulkan, GraphicsDeviceFlags::Win32);
 	
     auto ctx = device->GetImmediateCommandList();
     auto swapChain = device->CreateSwapChain(window);
@@ -116,6 +116,7 @@ int main()
             0.0f, 0.0f, 0.0f, 1.0f
         };
 
+        ctx->Begin();
         ctx->WriteArray(constantBuffer, transformData, 16);
 
         ctx->ClearRenderTargetView(rtv, { 0.3f,0.3f,0.3f,1 });
@@ -124,6 +125,8 @@ int main()
 		ctx->SetViewport({width, height});
 		ctx->SetGraphicsPipelineState(pso);
 		ctx->DrawInstanced(3, 1, 0, 0);
+
+        ctx->End();
 
 		swapChain->Present(0, PresentFlags::None);
     }
