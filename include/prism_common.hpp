@@ -7,6 +7,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 	class ShaderResourceView;
 	class UnorderedAccessView;
 	class RenderTargetView;
+	class CommandQueue;
 
 	enum class Format : uint8_t
 	{
@@ -463,8 +464,11 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	enum class CommandListType : uint8_t
 	{
-		Direct = 0,
-		Bundle = 1,
+		None = 0,
+		Direct = 1,
+		Bundle = 2,
+		Compute = 3,
+		Copy = 4,
 	};
 
 	enum class PipelineStateFlags : uint8_t

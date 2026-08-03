@@ -5,6 +5,10 @@
 #include "prism_graphics_pipeline.hpp"
 #include "prism_compute_pipeline.hpp"
 
+#ifdef HEXA_PRISM_D3D11
+#undef HEXA_PRISM_D3D11
+#endif 
+
 HEXA_PRISM_NAMESPACE_BEGIN
 
 	enum class BackendType
@@ -694,10 +698,36 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		DoNotFlush = 1,
 	};
 
+	class Fence : public DeviceChild
+	{
+	};
+
+	struct CommandAllocatorDesc
+	{
+		CommandQueue* queue;
+		CommandListType type;
+	};
+
+	class CommandAllocator : public DeviceChild
+	{
+		CommandAllocatorDesc desc;
+	public:
+		CommandAllocator(const CommandAllocatorDesc& desc) : desc(desc) {}
+		virtual bool Reset() = 0;
+	};
+
+	struct CommandListDesc
+	{
+		CommandListType type;
+		CommandAllocator* allocator;
+	};
+
 	class CommandList : public DeviceChild
 	{
+		CommandListDesc desc;
 	public:
-		virtual CommandListType GetType() const noexcept = 0;
+		CommandList(const CommandListDesc& desc) : desc(desc) {}
+		const CommandListDesc& GetDesc() const noexcept { return desc; }
 		virtual void Begin() = 0;
 		virtual void End() = 0;
 		virtual void SetGraphicsPipelineState(GraphicsPipelineState* state) = 0;
@@ -751,7 +781,31 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		}
 	};
 
-	enum class GraphicsDeviceFlags : uint32_t
+	enum class CommandQueueType
+	{
+		Graphics = 0,
+		Compute = 1,
+		Transfer = 2,
+	};
+
+	struct CommandQueueDesc
+	{
+		CommandQueueType type;
+		uint32_t index;
+		float priority;
+	};
+
+	class CommandQueue : public DeviceChild
+	{
+		CommandQueueDesc desc;
+	public:
+		CommandQueue(const CommandQueueDesc& desc) : desc(desc) {}
+		const CommandQueueDesc& GetDesc() const noexcept { return desc; }
+		virtual void Submit(CommandList** lists, uint32_t count, Fence* fence) = 0;
+		virtual void WaitIdle() = 0;
+	};
+
+	enum class DeviceFlags : uint32_t
 	{
 		None = 0,
 		Win32 = 1 << 0,
@@ -760,13 +814,23 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		Debug = 1 << 16,
 	};
 
-	HEXA_PRISM_DEFINE_FLAG_OPERATORS(GraphicsDeviceFlags);
+	struct DeviceDesc
+	{
+		BackendType type;
+		CommandQueueDesc* queues;
+		uint32_t queuesCount;
+		DeviceFlags flags;
+	};
 
-	class GraphicsDevice : public PrismObject
+	HEXA_PRISM_DEFINE_FLAG_OPERATORS(DeviceFlags);
+
+	class PrismDevice : public PrismObject
 	{
 	public:
-		static PrismObj<GraphicsDevice> Create(BackendType type, GraphicsDeviceFlags flags);
-		virtual CommandList* GetImmediateCommandList() = 0;
+		static PrismObj<PrismDevice> Create(const DeviceDesc& desc);
+		virtual CommandQueue* GetCommandQueue(uint32_t index) = 0;
+		virtual PrismObj<CommandAllocator> CreateCommandAllocator(const CommandAllocatorDesc& desc) = 0;
+		virtual PrismObj<CommandList> CreateCommandList(const CommandListDesc& desc) = 0;
 		virtual PrismObj<Buffer> CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData = nullptr) = 0;
 		virtual PrismObj<Texture1D> CreateTexture1D(const Texture1DDesc& desc) = 0;
 		virtual PrismObj<Texture2D> CreateTexture2D(const Texture2DDesc& desc) = 0;
@@ -776,7 +840,6 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual PrismObj<DepthStencilView> CreateDepthStencilView(Resource* resource, const DepthStencilViewDesc& desc) = 0;
 		virtual PrismObj<UnorderedAccessView> CreateUnorderedAccessView(Resource* resource, const UnorderedAccessViewDesc& desc) = 0;
 		virtual PrismObj<SamplerState> CreateSamplerState(const SamplerDesc& desc) = 0;
-		virtual PrismObj<CommandList> CreateCommandList() = 0;
 		virtual PrismObj<GraphicsPipeline> CreateGraphicsPipeline(const GraphicsPipelineDesc& desc) = 0;
 		virtual PrismObj<GraphicsPipelineState> CreateGraphicsPipelineState(GraphicsPipeline* pipeline, const GraphicsPipelineStateDesc& desc) = 0;
 		virtual PrismObj<ComputePipeline> CreateComputePipeline(const ComputePipelineDesc& desc) = 0;

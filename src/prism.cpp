@@ -9,9 +9,9 @@
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
-PrismObj<GraphicsDevice> GraphicsDevice::Create(BackendType type, GraphicsDeviceFlags flags)
+PrismObj<PrismDevice> PrismDevice::Create(const DeviceDesc& desc)
 {
-	switch (type) 
+	switch (desc.type)
 	{
 #if defined(HEXA_PRISM_D3D11)
 	case BackendType::D3D11:
@@ -29,13 +29,12 @@ PrismObj<GraphicsDevice> GraphicsDevice::Create(BackendType type, GraphicsDevice
 #if defined(HEXA_PRISM_VULKAN)
 	case BackendType::Vulkan:
 	{
-		VulkanGraphicsDevice* device = new VulkanGraphicsDevice();
-		if (!device->Initialize(flags))
+		auto device = MakePrismObj<VulkanDevice>();
+		if (!device->Initialize(desc))
 		{
-			delete device;
 			return {};
 		}
-		return PrismObj<GraphicsDevice>(device);
+		return device;
 	}
 	break;
 #endif

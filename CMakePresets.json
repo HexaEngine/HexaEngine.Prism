@@ -53,8 +53,7 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe",
-        "PrismVulkan": "ON",
-        "PrismD3D11": "ON"
+        "PrismVulkan": "ON"
       },
       "condition": {
         "type": "equals",

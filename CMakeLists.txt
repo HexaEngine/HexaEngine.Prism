@@ -39,6 +39,11 @@ set_target_properties(PrismStatic PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIR
 target_link_libraries(PrismShared SDL3::SDL3)
 target_link_libraries(PrismStatic SDL3::SDL3)
 
+if(WIN32)
+    target_compile_definitions(PrismShared PRIVATE NOMINMAX)
+    target_compile_definitions(PrismStatic PRIVATE NOMINMAX)
+endif()
+
 if(PrismD3D11)
     message("Prism_D3D11: ON")
     target_compile_definitions(PrismShared PUBLIC HEXA_PRISM_D3D11)
@@ -46,8 +51,6 @@ if(PrismD3D11)
 
     target_link_libraries(PrismShared d3d11.lib dxgi.lib d3dcompiler.lib)
     target_link_libraries(PrismStatic d3d11.lib dxgi.lib d3dcompiler.lib)
-    target_compile_definitions(PrismShared PRIVATE NOMINMAX)
-    target_compile_definitions(PrismStatic PRIVATE NOMINMAX)
 else()
     message("Prism_D3D11: OFF")
 endif()

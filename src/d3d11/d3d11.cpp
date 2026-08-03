@@ -603,7 +603,7 @@ void D3D11CommandList::EndEvent()
 
 // D3D11GraphicsDevice Implementation
 
-bool D3D11GraphicsDevice::Initialize(GraphicsDeviceFlags flags)
+bool D3D11GraphicsDevice::Initialize(DeviceFlags flags)
 {
 	HRESULT hr;
 

@@ -1061,10 +1061,12 @@ public:
 	}
 };
 
+class PrismDevice;
 class DeviceChild : public PrismObject
 {
 public:
-	virtual void* GetNativePointer() = 0;
+	virtual void* GetNativePointer() const noexcept = 0;
+	virtual PrismDevice* GetDevice() const noexcept = 0;
 };
 
 HEXA_PRISM_NAMESPACE_END

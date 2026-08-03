@@ -9,7 +9,10 @@ HEXA_PRISM_NAMESPACE_BEGIN
 #define VK_CHK(result) \
     if (result != VK_SUCCESS) { return false; }
 
-bool VulkanGraphicsDevice::FindQueueFamily(QueueFamilyIndices& indices) const
+#define VK_CHKRETDEF(result) \
+    if (result != VK_SUCCESS) { return {}; }
+
+bool VulkanDevice::FindQueueFamily(QueueFamilyIndices& indices) const
 {
     static constexpr auto InvalidIndex = QueueFamilyIndices::InvalidIndex;
     uint32_t count = 0;
@@ -49,7 +52,7 @@ bool VulkanGraphicsDevice::FindQueueFamily(QueueFamilyIndices& indices) const
     return indices.graphics != InvalidIndex;
 }
 
-bool VulkanGraphicsDevice::CreateLogicalDevice()
+bool VulkanDevice::CreateLogicalDevice()
 {
     if (!FindQueueFamily(queueIndicies))
         return false;
@@ -154,7 +157,7 @@ bool VulkanGraphicsDevice::CreateLogicalDevice()
     return true;
 }
 
-bool VulkanGraphicsDevice::Initialize(GraphicsDeviceFlags flags)
+bool VulkanDevice::Initialize(const DeviceDesc& desc)
 {
     std::vector<const char*> layers;
     uint32_t layerCount = 0;
@@ -174,18 +177,18 @@ bool VulkanGraphicsDevice::Initialize(GraphicsDeviceFlags flags)
     std::vector<const char*> extensions;
     extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 #if HEXA_PRISM_WINDOWS
-    if ((flags & GraphicsDeviceFlags::Win32) != 0)
+    if ((desc.flags & DeviceFlags::Win32) != 0)
     {
         extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
     }
 #endif
 
 #if HEXA_PRISM_LINUX
-    if ((flags & GraphicsDeviceFlags::X11) != 0)
+    if ((desc.flags & GraphicsDeviceFlags::X11) != 0)
     {
         extensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
     }
-    if ((flags & GraphicsDeviceFlags::Wayland) != 0)
+    if ((desc.flags & GraphicsDeviceFlags::Wayland) != 0)
     {
         extensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
     }
@@ -245,11 +248,7 @@ bool VulkanGraphicsDevice::Initialize(GraphicsDeviceFlags flags)
         return false;
     }
 
-    VkCommandPoolCreateInfo poolInfo = {};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.queueFamilyIndex = queueIndicies.graphics;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    VK_CHK(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool));
+
 
     VkCommandBufferAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -265,94 +264,148 @@ bool VulkanGraphicsDevice::Initialize(GraphicsDeviceFlags flags)
     return true;
 }
 
-CommandList* VulkanGraphicsDevice::GetImmediateCommandList()
+CommandQueue* VulkanDevice::GetCommandQueue(uint32_t index)
 {
-    return immediateCommandList.Get();
+    return nullptr;
 }
 
-PrismObj<Buffer> VulkanGraphicsDevice::CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData)
+PrismObj<CommandAllocator> VulkanDevice::CreateCommandAllocator(const CommandAllocatorDesc& desc)
+{
+    auto queue = static_cast<VulkanCommandQueue*>(desc.queue);
+    VkCommandPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = queueIndicies.graphics;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    VkCommandPool pool;
+    VK_CHKRETDEF(vkCreateCommandPool(device, &poolInfo, GetAllocationCallbacks(), &pool));
+
+    return MakePrismObj<VulkanCommandAllocator>(this, pool);
+}
+
+PrismObj<CommandList> VulkanDevice::CreateCommandList(const CommandListDesc& desc)
+{
+    return PrismObj<CommandList>();
+}
+
+PrismObj<Buffer> VulkanDevice::CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData)
 {
     return {};
 }
 
-PrismObj<Texture1D> VulkanGraphicsDevice::CreateTexture1D(const Texture1DDesc& desc)
+PrismObj<Texture1D> VulkanDevice::CreateTexture1D(const Texture1DDesc& desc)
 {
     return {};
 }
 
-PrismObj<Texture2D> VulkanGraphicsDevice::CreateTexture2D(const Texture2DDesc& desc)
+PrismObj<Texture2D> VulkanDevice::CreateTexture2D(const Texture2DDesc& desc)
 {
     return {};
 }
 
-PrismObj<Texture3D> VulkanGraphicsDevice::CreateTexture3D(const Texture3DDesc& desc)
+PrismObj<Texture3D> VulkanDevice::CreateTexture3D(const Texture3DDesc& desc)
 {
     return {};
 }
 
-PrismObj<RenderTargetView> VulkanGraphicsDevice::CreateRenderTargetView(Resource* resource, const RenderTargetViewDesc& desc)
+PrismObj<RenderTargetView> VulkanDevice::CreateRenderTargetView(Resource* resource, const RenderTargetViewDesc& desc)
 {
     return {};
 }
 
-PrismObj<ShaderResourceView> VulkanGraphicsDevice::CreateShaderResourceView(Resource* resource, const ShaderResourceViewDesc& desc)
+PrismObj<ShaderResourceView> VulkanDevice::CreateShaderResourceView(Resource* resource, const ShaderResourceViewDesc& desc)
 {
     return {};
 }
 
-PrismObj<DepthStencilView> VulkanGraphicsDevice::CreateDepthStencilView(Resource* resource, const DepthStencilViewDesc& desc)
+PrismObj<DepthStencilView> VulkanDevice::CreateDepthStencilView(Resource* resource, const DepthStencilViewDesc& desc)
 {
     return {};
 }
 
-PrismObj<UnorderedAccessView> VulkanGraphicsDevice::CreateUnorderedAccessView(Resource* resource, const UnorderedAccessViewDesc& desc)
+PrismObj<UnorderedAccessView> VulkanDevice::CreateUnorderedAccessView(Resource* resource, const UnorderedAccessViewDesc& desc)
 {
     return {};
 }
 
-PrismObj<SamplerState> VulkanGraphicsDevice::CreateSamplerState(const SamplerDesc& desc)
+PrismObj<SamplerState> VulkanDevice::CreateSamplerState(const SamplerDesc& desc)
 {
     return {};
 }
 
-PrismObj<CommandList> VulkanGraphicsDevice::CreateCommandList()
+PrismObj<GraphicsPipeline> VulkanDevice::CreateGraphicsPipeline(const GraphicsPipelineDesc& desc)
 {
     return {};
 }
 
-PrismObj<GraphicsPipeline> VulkanGraphicsDevice::CreateGraphicsPipeline(const GraphicsPipelineDesc& desc)
+PrismObj<GraphicsPipelineState> VulkanDevice::CreateGraphicsPipelineState(GraphicsPipeline* pipeline, const GraphicsPipelineStateDesc& desc)
 {
     return {};
 }
 
-PrismObj<GraphicsPipelineState> VulkanGraphicsDevice::CreateGraphicsPipelineState(GraphicsPipeline* pipeline, const GraphicsPipelineStateDesc& desc)
+PrismObj<ComputePipeline> VulkanDevice::CreateComputePipeline(const ComputePipelineDesc& desc)
 {
     return {};
 }
 
-PrismObj<ComputePipeline> VulkanGraphicsDevice::CreateComputePipeline(const ComputePipelineDesc& desc)
+PrismObj<ComputePipelineState> VulkanDevice::CreateComputePipelineState(ComputePipeline* pipeline, const ComputePipelineStateDesc& desc)
 {
     return {};
 }
 
-PrismObj<ComputePipelineState> VulkanGraphicsDevice::CreateComputePipelineState(ComputePipeline* pipeline, const ComputePipelineStateDesc& desc)
+PrismObj<SwapChain> VulkanDevice::CreateSwapChain(void* windowHandle, const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc)
 {
     return {};
 }
 
-PrismObj<SwapChain> VulkanGraphicsDevice::CreateSwapChain(void* windowHandle, const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc)
+PrismObj<SwapChain> VulkanDevice::CreateSwapChain(void* windowHandle)
 {
     return {};
 }
 
-PrismObj<SwapChain> VulkanGraphicsDevice::CreateSwapChain(void* windowHandle)
+PrismObj<Query> VulkanDevice::CreateQuery(const QueryDesc& desc)
 {
     return {};
 }
 
-PrismObj<Query> VulkanGraphicsDevice::CreateQuery(const QueryDesc& desc)
+VulkanFence::~VulkanFence()
 {
-    return {};
+    vkDestroyFence(device->GetDevice(), fence, device->GetAllocationCallbacks());
+}
+
+void VulkanCommandQueue::Submit(CommandList** lists, uint32_t count, Fence* fence)
+{
+    VkFence vkfence = VK_NULL_HANDLE;
+    if (fence)
+    {
+        vkfence = static_cast<VulkanFence*>(fence)->GetFence();
+    }
+
+    VkCommandBuffer* commandBuffers = reinterpret_cast<VkCommandBuffer*>(alloca(sizeof(VkCommandBuffer) * count));
+    for (size_t i = 0; i < count; ++i)
+    {
+        commandBuffers[i] = static_cast<VulkanCommandList*>(lists[i])->GetCommandBuffer();
+    }
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = count;
+    submitInfo.pCommandBuffers = commandBuffers;
+    vkQueueSubmit(queue, 1, &submitInfo, vkfence);
+}
+
+void VulkanCommandQueue::WaitIdle()
+{
+    vkQueueWaitIdle(queue);
+}
+
+VulkanCommandAllocator::~VulkanCommandAllocator()
+{
+    vkDestroyCommandPool(device->GetDevice(), commandPool, device->GetAllocationCallbacks());
+}
+
+bool VulkanCommandAllocator::Reset()
+{
+    VK_CHK(vkResetCommandPool(device->GetDevice(), commandPool, 0));
 }
 
 void VulkanCommandList::EnsureDrawBegin()
@@ -459,7 +512,9 @@ void VulkanCommandList::End()
 }
 
 
-GraphicsDevice* VulkanDeviceChild::GetDevice() { return device; }
+PrismDevice* VulkanDeviceChild::GetDevice() { return device; }
 
 
 HEXA_PRISM_NAMESPACE_END
+
+

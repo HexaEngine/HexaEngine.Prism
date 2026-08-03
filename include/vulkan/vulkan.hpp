@@ -4,23 +4,23 @@
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
-class VulkanGraphicsDevice;
+class VulkanDevice;
 
 class VulkanDeviceChild
 {
 protected:
-	VulkanGraphicsDevice* device;
-	VulkanDeviceChild(VulkanGraphicsDevice* device) : device(device) {}
+	VulkanDevice* device;
+	VulkanDeviceChild(VulkanDevice* device) : device(device) {}
 
 public:
-	GraphicsDevice* GetDevice();
+	PrismDevice* GetDevice();
 };
 
 class VulkanRenderTargetView : public VulkanDeviceChild, public RenderTargetView
 {
 	VkImageView imageView;
 public:
-	VulkanRenderTargetView(VulkanGraphicsDevice* device, VkImageView imageView, const RenderTargetViewDesc& desc) : VulkanDeviceChild(device), RenderTargetView(desc), imageView(imageView)
+	VulkanRenderTargetView(VulkanDevice* device, VkImageView imageView, const RenderTargetViewDesc& desc) : VulkanDeviceChild(device), RenderTargetView(desc), imageView(imageView)
 	{
 	}	
 	
@@ -31,7 +31,7 @@ class VulkanDepthStencilView : public VulkanDeviceChild, public DepthStencilView
 {
 	VkImageView imageView;
 public:
-	VulkanDepthStencilView(VulkanGraphicsDevice* device, VkImageView imageView, const DepthStencilViewDesc& desc) : VulkanDeviceChild(device), DepthStencilView(desc), imageView(imageView)
+	VulkanDepthStencilView(VulkanDevice* device, VkImageView imageView, const DepthStencilViewDesc& desc) : VulkanDeviceChild(device), DepthStencilView(desc), imageView(imageView)
 	{
 	}
 
@@ -46,6 +46,49 @@ public:
 		: SwapChain(desc, fullscreenDesc), swapchain(swapchain)
 	{
 	}
+};
+
+class VulkanFence : public Fence
+{
+	VulkanDevice* device;
+	VkFence fence;
+public:
+	VulkanFence(VulkanDevice* device, VkFence fence) : device(device), fence(fence) {}
+	~VulkanFence();
+
+	VkFence GetFence() const noexcept { return fence; }
+	void* GetNativePointer() const noexcept override { return fence; }
+	PrismDevice* GetDevice() const noexcept override { return device; }
+};
+
+class VulkanCommandQueue : public CommandQueue
+{
+	VulkanDevice* device;
+	VkQueue queue;
+
+public:
+	VulkanCommandQueue(const CommandQueueDesc& desc, VulkanDevice* device, VkQueue queue) : CommandQueue(desc), device(device), queue(queue) {}
+	void Submit(CommandList** lists, uint32_t count, Fence* fence) override;
+	void WaitIdle() override;
+
+	VkQueue GetQueue() const noexcept { return queue; }
+	void* GetNativePointer() const noexcept override { return queue; }
+	PrismDevice* GetDevice() const noexcept override { return device; }
+};
+
+class VulkanCommandAllocator : public CommandAllocator
+{
+	VulkanDevice* device;
+	VkCommandPool commandPool;
+
+public:
+	VulkanCommandAllocator(const CommandAllocatorDesc& desc, VulkanDevice* device, VkCommandPool commandPool) : CommandAllocator(desc), device(device), commandPool(commandPool) {}
+	~VulkanCommandAllocator();
+	bool Reset() override;
+
+	VkCommandPool GetCommandPool() const noexcept { return commandPool; }
+	void* GetNativePointer() const noexcept override { return commandPool; }
+	PrismDevice* GetDevice() const noexcept override { return device; }
 };
 
 static constexpr uint32_t VkMaxSimultaneousRenderTargets = 8;
@@ -71,7 +114,7 @@ class VulkanCommandList : public CommandList
 		Format indexFormat = Format::Unknown;
 	};
 
-	VulkanGraphicsDevice* device;
+	VulkanDevice* device;
 	VkCommandBuffer commandBuffer;
 	CommandListType type;
 	CommandListState state;
@@ -79,8 +122,7 @@ class VulkanCommandList : public CommandList
 	void EnsureDrawBegin();
 	void EnsureDrawEnd();
 public:
-	VulkanCommandList(VulkanGraphicsDevice* device, VkCommandBuffer commandBuffer, CommandListType type) : device(device), commandBuffer(commandBuffer), type(type) {}
-	CommandListType GetType() const noexcept override { return type; }
+	VulkanCommandList(const CommandListDesc& desc, VulkanDevice* device, VkCommandBuffer commandBuffer) : CommandList(desc), device(device), commandBuffer(commandBuffer), type(type) {}
 	void Begin() override;
 	void End() override;
 	void SetGraphicsPipelineState(GraphicsPipelineState* state) override;
@@ -116,6 +158,8 @@ public:
 
 	void BeginEvent(const char* name) override;
 	void EndEvent() override;
+
+	VkCommandBuffer GetCommandBuffer() const noexcept { return commandBuffer; }
 };
 
 struct QueueFamilyIndices 
@@ -126,7 +170,7 @@ struct QueueFamilyIndices
     uint32_t transfer = InvalidIndex;
 };
 
-class VulkanGraphicsDevice : public GraphicsDevice
+class VulkanDevice : public PrismDevice
 {
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -135,15 +179,15 @@ class VulkanGraphicsDevice : public GraphicsDevice
     VkQueue graphicsQueue = VK_NULL_HANDLE;
 	VkQueue computeQueue = VK_NULL_HANDLE;
 	VkQueue transferQueue = VK_NULL_HANDLE;
-	VkCommandPool commandPool = VK_NULL_HANDLE;
-	PrismObj<VulkanCommandList> immediateCommandList;
     
     bool FindQueueFamily(QueueFamilyIndices& indices) const;
     bool CreateLogicalDevice();
 public:
-    VulkanGraphicsDevice() = default;
-    bool Initialize(GraphicsDeviceFlags flags);
-    CommandList* GetImmediateCommandList() override;
+    VulkanDevice() = default;
+    bool Initialize(const DeviceDesc& desc);
+	CommandQueue* GetCommandQueue(uint32_t index) override;
+	PrismObj<CommandAllocator> CreateCommandAllocator(const CommandAllocatorDesc& desc) override;
+	PrismObj<CommandList> CreateCommandList(const CommandListDesc& desc) override;
 	PrismObj<Buffer> CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData = nullptr) override;
 	PrismObj<Texture1D> CreateTexture1D(const Texture1DDesc& desc) override;
 	PrismObj<Texture2D> CreateTexture2D(const Texture2DDesc& desc) override;
@@ -153,7 +197,6 @@ public:
 	PrismObj<DepthStencilView> CreateDepthStencilView(Resource* resource, const DepthStencilViewDesc& desc) override;
 	PrismObj<UnorderedAccessView> CreateUnorderedAccessView(Resource* resource, const UnorderedAccessViewDesc& desc) override;
 	PrismObj<SamplerState> CreateSamplerState(const SamplerDesc& desc) override;
-	PrismObj<CommandList> CreateCommandList() override;
 	PrismObj<GraphicsPipeline> CreateGraphicsPipeline(const GraphicsPipelineDesc& desc) override;
 	PrismObj<GraphicsPipelineState> CreateGraphicsPipelineState(GraphicsPipeline* pipeline, const GraphicsPipelineStateDesc& desc) override;
 	PrismObj<ComputePipeline> CreateComputePipeline(const ComputePipelineDesc& desc) override;

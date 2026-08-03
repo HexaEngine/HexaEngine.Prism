@@ -15,9 +15,20 @@ int main()
     int width, height;
     SDL_GetWindowSize(window, &width, &height);
 
-    PrismObj<GraphicsDevice> device = GraphicsDevice::Create(BackendType::Vulkan, GraphicsDeviceFlags::Win32);
+    CommandQueueDesc queueDesc = { CommandQueueType::Graphics, 0, 1.0f };
+
+    DeviceDesc desc{};
+    desc.type = BackendType::Vulkan;
+    desc.flags = DeviceFlags::Win32;
+    desc.queues = &queueDesc;
+    desc.queuesCount = 1;
+    auto device = PrismDevice::Create(desc);
+    auto queue = device->GetCommandQueue(0);
+    auto allocator = device->CreateCommandAllocator(CommandListType::Direct);
+    
+    CommandListDesc commandListDesc = { CommandListType::Direct, allocator.Get() };
+    auto ctx = device->CreateCommandList(commandListDesc);
 	
-    auto ctx = device->GetImmediateCommandList();
     auto swapChain = device->CreateSwapChain(window);
     auto tex = swapChain->GetBuffer(0);
     RenderTargetViewDesc rtvDesc = {};

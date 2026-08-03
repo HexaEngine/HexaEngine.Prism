@@ -198,7 +198,7 @@ public:
 	void* GetNativePointer() override { return context.Get(); }
 };
 
-class D3D11GraphicsDevice : public GraphicsDevice
+class D3D11GraphicsDevice : public PrismDevice
 {
 	ComPtr<IDXGIFactory4> factory;
 	ComPtr<IDXGIAdapter3> adapter;
@@ -209,7 +209,7 @@ public:
 	D3D11GraphicsDevice() = default;
 	~D3D11GraphicsDevice() override = default;
 
-	bool Initialize(GraphicsDeviceFlags flags);
+	bool Initialize(DeviceFlags flags);
 
 	CommandList* GetImmediateCommandList() override;
 	PrismObj<Buffer> CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData) override;
