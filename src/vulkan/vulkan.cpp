@@ -1717,10 +1717,10 @@ void VulkanGraphicsPipelineState::Create()
     rasterizationState.depthClampEnable = desc.rasterizer.depthClipEnable ? VK_FALSE : VK_TRUE;
     rasterizationState.polygonMode = ConvertFillMode(desc.rasterizer.fillMode);
     rasterizationState.cullMode = ConvertCullMode(desc.rasterizer.cullMode);
-    // SetViewport always uses a negative-height viewport (D3D-style Y-down-in-screen-space
-    // convention), which reverses the winding order the rasterizer actually sees. Flip the
-    // front-face sense here to compensate, so CullBack/CullFront behave as the caller expects.
-    rasterizationState.frontFace = desc.rasterizer.frontCounterClockwise ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    // SetViewport always uses a negative-height viewport (VK_KHR_maintenance1) to match
+    // D3D's Y-down-in-screen-space convention; that already fully compensates for winding,
+    // so frontFace maps straight across from the D3D-style desc with no extra inversion.
+    rasterizationState.frontFace = desc.rasterizer.frontCounterClockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
     rasterizationState.depthBiasEnable = desc.rasterizer.depthBias != 0 || desc.rasterizer.slopeScaledDepthBias != 0.0f ? VK_TRUE : VK_FALSE;
     rasterizationState.depthBiasConstantFactor = static_cast<float>(desc.rasterizer.depthBias);
     rasterizationState.depthBiasClamp = desc.rasterizer.depthBiasClamp;
@@ -2085,32 +2085,37 @@ void VulkanSwapChain::ResizeBuffers(uint32_t bufferCount, uint32_t width, uint32
     CreateOrResizeSwapchain(width, height, newFormat, bufferCount);
 }
 
+void VulkanSwapChain::EnsureImageAcquired()
+{
+    if (imageAcquired)
+    {
+        return;
+    }
+
+    VkResult result = vkAcquireNextImageKHR(device->GetDevice(), swapchain, UINT64_MAX, VK_NULL_HANDLE, acquireFence, &currentImageIndex);
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+    {
+        return;
+    }
+
+    vkWaitForFences(device->GetDevice(), 1, &acquireFence, VK_TRUE, UINT64_MAX);
+    vkResetFences(device->GetDevice(), 1, &acquireFence);
+    imageAcquired = true;
+}
+
 PrismObj<Texture2D> VulkanSwapChain::GetBuffer(size_t index)
 {
-    if (!swapchain)
-    {
-        return {};
-    }
+    // Plain by-index accessor (no acquire side effect) so callers can fetch every
+    // swapchain image once up front, e.g. to build one RTV per buffer, instead of
+    // recreating views every frame. Use GetCurrentBackBufferIndex() to know which
+    // one to actually render into this frame.
+    return PrismObj<Texture2D>(buffers[index].Get());
+}
 
-    if (!imageAcquired)
-    {
-        VkResult result = vkAcquireNextImageKHR(device->GetDevice(), swapchain, UINT64_MAX, VK_NULL_HANDLE, acquireFence, &currentImageIndex);
-        if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-        {
-            return {};
-        }
-
-        vkWaitForFences(device->GetDevice(), 1, &acquireFence, VK_TRUE, UINT64_MAX);
-        vkResetFences(device->GetDevice(), 1, &acquireFence);
-        imageAcquired = true;
-    }
-
-    if (currentImageIndex >= buffers.size())
-    {
-        return {};
-    }
-
-    return PrismObj<Texture2D>(buffers[currentImageIndex].Get());
+uint32_t VulkanSwapChain::GetCurrentBackBufferIndex()
+{
+    EnsureImageAcquired();
+    return currentImageIndex;
 }
 
 void VulkanSwapChain::Present(uint32_t interval, PresentFlags flags)

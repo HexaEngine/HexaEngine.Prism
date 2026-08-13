@@ -35,10 +35,15 @@ int main()
         std::cerr << "Failed to create swap chain" << std::endl;
         return 1;
     }
-    auto tex = swapChain->GetBuffer(0);
-    RenderTargetViewDesc rtvDesc = {};
-    rtvDesc.dimension = RenderTargetViewDimension::Texture2D;
-    auto rtv = device->CreateRenderTargetView(tex, rtvDesc);
+    // One RTV per swapchain buffer, created once and reused every frame.
+    std::vector<PrismObj<RenderTargetView>> backBufferRtvs;
+    for (uint32_t i = 0; i < swapChain->GetDesc().bufferCount; ++i)
+    {
+        auto tex = swapChain->GetBuffer(i);
+        RenderTargetViewDesc rtvDesc = {};
+        rtvDesc.dimension = RenderTargetViewDimension::Texture2D;
+        backBufferRtvs.push_back(device->CreateRenderTargetView(tex, rtvDesc));
+    }
 
     auto vertexShader = MakePrismObj<TextShaderSource>("VertexShader", R"(struct VSInput
     {
@@ -133,6 +138,8 @@ int main()
             0.0f, 0.0f, 1.0f, 0.0f,
             0.0f, 0.0f, 0.0f, 1.0f
         };
+
+        RenderTargetView* rtv = backBufferRtvs[swapChain->GetCurrentBackBufferIndex()].Get();
 
         ctx->Begin();
         ctx->WriteArray(constantBuffer, transformData, 16);

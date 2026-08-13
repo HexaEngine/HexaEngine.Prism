@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(Prism LANGUAGES C CXX)
 
-option(PrismD3D11 ON "Prims D3D11 backend (Windows only)")
+option(PrismD3D11 OFF "Prims D3D11 backend (Windows only)")
 option(PrismVulkan ON "Prims Vulkan backend")
 
 set(CMAKE_CXX_STANDARD 23)

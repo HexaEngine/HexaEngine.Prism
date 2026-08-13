@@ -636,6 +636,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual void ResizeBuffers(uint32_t bufferCount, uint32_t width, uint32_t height, Format newFormat, SwapChainFlags swapChainFlags) = 0;
 
 		virtual PrismObj<Texture2D> GetBuffer(size_t index) = 0;
+		virtual uint32_t GetCurrentBackBufferIndex() = 0;
 		virtual void Present(uint32_t interval, PresentFlags flags) = 0;
 	};
 

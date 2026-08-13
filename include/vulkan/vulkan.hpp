@@ -186,6 +186,7 @@ class VulkanSwapChain : public SwapChain
 
 	bool CreateOrResizeSwapchain(uint32_t width, uint32_t height, Format format, uint32_t bufferCount);
 	void DestroySwapchainResources();
+	void EnsureImageAcquired();
 
 public:
 	VulkanSwapChain(VulkanDevice* device, void* windowHandle, VkSurfaceKHR surface, const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc);
@@ -193,6 +194,7 @@ public:
 
 	void ResizeBuffers(uint32_t bufferCount, uint32_t width, uint32_t height, Format newFormat, SwapChainFlags swapChainFlags) override;
 	PrismObj<Texture2D> GetBuffer(size_t index) override;
+	uint32_t GetCurrentBackBufferIndex() override;
 	void Present(uint32_t interval, PresentFlags flags) override;
 
 	VkSwapchainKHR GetSwapchain() const noexcept { return swapchain; }
