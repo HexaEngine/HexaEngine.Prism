@@ -1684,9 +1684,12 @@ void VulkanGraphicsPipelineState::Create()
         attribute.offset = offset;
         attributes.push_back(attribute);
     }
-    for (auto& binding : bindings)
+    if (desc.numInputElements > 0)
     {
-        binding.stride = runningOffsets[binding.binding];
+        for (auto& binding : bindings)
+        {
+            binding.stride = runningOffsets[binding.binding];
+        }
     }
 
     VkPipelineVertexInputStateCreateInfo vertexInputState = {};
@@ -1714,7 +1717,10 @@ void VulkanGraphicsPipelineState::Create()
     rasterizationState.depthClampEnable = desc.rasterizer.depthClipEnable ? VK_FALSE : VK_TRUE;
     rasterizationState.polygonMode = ConvertFillMode(desc.rasterizer.fillMode);
     rasterizationState.cullMode = ConvertCullMode(desc.rasterizer.cullMode);
-    rasterizationState.frontFace = desc.rasterizer.frontCounterClockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
+    // SetViewport always uses a negative-height viewport (D3D-style Y-down-in-screen-space
+    // convention), which reverses the winding order the rasterizer actually sees. Flip the
+    // front-face sense here to compensate, so CullBack/CullFront behave as the caller expects.
+    rasterizationState.frontFace = desc.rasterizer.frontCounterClockwise ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizationState.depthBiasEnable = desc.rasterizer.depthBias != 0 || desc.rasterizer.slopeScaledDepthBias != 0.0f ? VK_TRUE : VK_FALSE;
     rasterizationState.depthBiasConstantFactor = static_cast<float>(desc.rasterizer.depthBias);
     rasterizationState.depthBiasClamp = desc.rasterizer.depthBiasClamp;

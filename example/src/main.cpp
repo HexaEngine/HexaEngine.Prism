@@ -84,6 +84,8 @@ int main()
 	auto pipeline = device->CreateGraphicsPipeline(pipelineDesc);
 
 	GraphicsPipelineStateDesc psoDesc = {};
+    psoDesc.numRenderTargets = 1;
+    psoDesc.renderTargetFormats[0] = swapChain->GetDesc().format;
     auto pso = device->CreateGraphicsPipelineState(pipeline, psoDesc);
 
 	BufferDesc vertexBufferDesc = {};
