@@ -12,6 +12,12 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 add_subdirectory(external/SDL)
 
+# DirectXTex is cross-platform (DirectXMath/DirectX-Headers come from vcpkg packages on
+# non-Windows) and used by all backends, so it's wired in unconditionally here.
+set(BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(BUILD_SAMPLE OFF CACHE BOOL "" FORCE)
+add_subdirectory(external/DirectXTex)
+
 if (NOT WIN32)
     set(PrismD3D11 OFF)
 endif()
@@ -38,6 +44,9 @@ set_target_properties(PrismStatic PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIR
 
 target_link_libraries(PrismShared SDL3::SDL3)
 target_link_libraries(PrismStatic SDL3::SDL3)
+
+target_link_libraries(PrismShared DirectXTex)
+target_link_libraries(PrismStatic DirectXTex)
 
 if(WIN32)
     target_compile_definitions(PrismShared PRIVATE NOMINMAX)
