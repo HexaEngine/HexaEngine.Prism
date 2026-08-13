@@ -10,7 +10,7 @@ int main()
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 
     float scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
-    SDL_Window* window = SDL_CreateWindow("Test", static_cast<int>(1280 * scale), static_cast<int>(720 * scale), SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    SDL_Window* window = SDL_CreateWindow("Test", static_cast<int>(1280 * scale), static_cast<int>(720 * scale), SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_VULKAN);
 
     int width, height;
     SDL_GetWindowSize(window, &width, &height);
@@ -30,6 +30,11 @@ int main()
     auto ctx = device->CreateCommandList(commandListDesc);
 	
     auto swapChain = device->CreateSwapChain(window);
+    if (!swapChain)
+    {
+        std::cerr << "Failed to create swap chain" << std::endl;
+        return 1;
+    }
     auto tex = swapChain->GetBuffer(0);
     RenderTargetViewDesc rtvDesc = {};
     rtvDesc.dimension = RenderTargetViewDimension::Texture2D;

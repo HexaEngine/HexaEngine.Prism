@@ -247,6 +247,20 @@ namespace
         return VK_NULL_HANDLE;
     }
 
+    // D3D convention: Format::Unknown in a view desc means "inherit the resource's own format".
+    Format GetResourceFormat(Resource* resource)
+    {
+        if (auto* tex = dynamic_cast<VulkanTexture2D*>(resource)) return tex->GetDesc().format;
+        if (auto* tex = dynamic_cast<VulkanTexture1D*>(resource)) return tex->GetDesc().format;
+        if (auto* tex = dynamic_cast<VulkanTexture3D*>(resource)) return tex->GetDesc().format;
+        return Format::Unknown;
+    }
+
+    Format ResolveViewFormat(Resource* resource, Format requested)
+    {
+        return requested == Format::Unknown ? GetResourceFormat(resource) : requested;
+    }
+
     VkImageLayout GetTrackedLayout(Resource* resource)
     {
         if (auto* tex = dynamic_cast<VulkanTexture2D*>(resource)) return tex->GetCurrentLayout();
@@ -1830,6 +1844,7 @@ PrismObj<SwapChain> VulkanDevice::CreateSwapChain(void* windowHandle, const Swap
     VkSurfaceKHR surface;
     if (!SDL_Vulkan_CreateSurface(sdlWindow, instance, GetAllocationCallbacks(), &surface))
     {
+        std::cout << "SDL_Vulkan_CreateSurface failed: " << SDL_GetError() << std::endl;
         return {};
     }
 
@@ -1901,6 +1916,7 @@ bool VulkanSwapChain::CreateOrResizeSwapchain(uint32_t width, uint32_t height, V
     VkSurfaceCapabilitiesKHR caps;
     if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->GetPhysicalDevice(), surface, &caps) != VK_SUCCESS)
     {
+        std::cout << "vkGetPhysicalDeviceSurfaceCapabilitiesKHR failed" << std::endl;
         return false;
     }
 
@@ -1944,6 +1960,7 @@ bool VulkanSwapChain::CreateOrResizeSwapchain(uint32_t width, uint32_t height, V
 
     if (result != VK_SUCCESS)
     {
+        std::cout << "vkCreateSwapchainKHR failed: VkResult " << result << std::endl;
         return false;
     }
 
