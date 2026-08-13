@@ -957,7 +957,7 @@ PrismObj<RenderTargetView> VulkanDevice::CreateRenderTargetView(Resource* resour
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = image;
-    viewInfo.format = ConvertFormat(desc.format);
+    viewInfo.format = ConvertFormat(ResolveViewFormat(resource, desc.format));
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.layerCount = 1;
@@ -1022,7 +1022,7 @@ PrismObj<ShaderResourceView> VulkanDevice::CreateShaderResourceView(Resource* re
         return {}; // buffer SRVs not yet supported
     }
 
-    VkFormat format = ConvertFormat(desc.format);
+    VkFormat format = ConvertFormat(ResolveViewFormat(resource, desc.format));
 
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1110,7 +1110,7 @@ PrismObj<DepthStencilView> VulkanDevice::CreateDepthStencilView(Resource* resour
         return {};
     }
 
-    VkFormat format = ConvertFormat(desc.format);
+    VkFormat format = ConvertFormat(ResolveViewFormat(resource, desc.format));
 
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1179,7 +1179,7 @@ PrismObj<UnorderedAccessView> VulkanDevice::CreateUnorderedAccessView(Resource* 
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = image;
-    viewInfo.format = ConvertFormat(desc.format);
+    viewInfo.format = ConvertFormat(ResolveViewFormat(resource, desc.format));
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.layerCount = 1;
