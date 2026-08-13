@@ -700,12 +700,20 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	class Fence : public DeviceChild
 	{
+	public:
+		virtual void Signal(uint64_t value) = 0;
+		virtual uint64_t GetCompletedValue() const = 0;
+		virtual bool Wait(uint64_t value, uint64_t timeoutNs = UINT64_MAX) = 0;
 	};
 
 	struct CommandAllocatorDesc
 	{
-		CommandQueue* queue;
-		CommandListType type;
+		CommandQueue* queue = nullptr;
+		CommandListType type = CommandListType::None;
+
+		constexpr CommandAllocatorDesc() = default;
+		constexpr CommandAllocatorDesc(CommandListType type) : queue(nullptr), type(type) {}
+		constexpr CommandAllocatorDesc(CommandListType type, CommandQueue* queue) : queue(queue), type(type) {}
 	};
 
 	class CommandAllocator : public DeviceChild
@@ -801,7 +809,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 	public:
 		CommandQueue(const CommandQueueDesc& desc) : desc(desc) {}
 		const CommandQueueDesc& GetDesc() const noexcept { return desc; }
-		virtual void Submit(CommandList** lists, uint32_t count, Fence* fence) = 0;
+		virtual void Submit(CommandList** lists, uint32_t count, Fence* fence = nullptr, uint64_t signalValue = 0) = 0;
 		virtual void WaitIdle() = 0;
 	};
 
@@ -847,6 +855,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual PrismObj<SwapChain> CreateSwapChain(void* windowHandle, const SwapChainDesc& desc, const SwapChainFullscreenDesc& fullscreenDesc) = 0;
 		virtual PrismObj<SwapChain> CreateSwapChain(void* windowHandle) = 0;
 		virtual PrismObj<Query> CreateQuery(const QueryDesc& desc) = 0;
+		virtual PrismObj<Fence> CreateFence(uint64_t initialValue) = 0;
 	};
 
 HEXA_PRISM_NAMESPACE_END

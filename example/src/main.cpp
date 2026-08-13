@@ -139,6 +139,9 @@ int main()
 
         ctx->End();
 
+        CommandList* lists[] = { ctx.Get() };
+        queue->Submit(lists, 1);
+
 		swapChain->Present(0, PresentFlags::None);
     }
     

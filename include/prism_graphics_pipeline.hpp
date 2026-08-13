@@ -384,6 +384,15 @@ struct GraphicsPipelineStateDesc
 	PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
 	PipelineStateFlags flags = PipelineStateFlags::None;
 
+	// Vulkan dynamic rendering and D3D12 both bake target formats/sample count into the PSO
+	// itself (no render pass object either way), so this has to live here rather than be
+	// resolved dynamically like D3D11's OMSetRenderTargets.
+	static constexpr size_t MaxRenderTargets = 8;
+	std::array<Format, MaxRenderTargets> renderTargetFormats = {};
+	uint32_t numRenderTargets = 0;
+	Format depthStencilFormat = Format::Unknown;
+	uint32_t sampleCount = 1;
+
 	constexpr GraphicsPipelineStateDesc() = default;
 
 	constexpr GraphicsPipelineStateDesc(

@@ -141,6 +141,8 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		All = Read | Write
 	};
 
+	HEXA_PRISM_DEFINE_FLAG_OPERATORS(CpuAccessFlags);
+
 	enum class GpuAccessFlags : uint8_t
 	{
 		None = 0,
@@ -152,6 +154,8 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		RW = Read | Write,
 		All = Read | Write | UA
 	};
+
+	HEXA_PRISM_DEFINE_FLAG_OPERATORS(GpuAccessFlags);
 
 	enum class Filter : uint32_t
 	{
@@ -219,6 +223,8 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		None = 0,
 		TextureCube = 1 << 0,
 	};
+
+	HEXA_PRISM_DEFINE_FLAG_OPERATORS(ResourceMiscFlags);
 
 	enum class ShaderStage : uint8_t
 	{

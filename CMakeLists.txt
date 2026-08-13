@@ -64,6 +64,30 @@ if(PrismVulkan)
     target_link_libraries(PrismShared Vulkan::Vulkan)
     target_link_libraries(PrismStatic Vulkan::Vulkan)
 
+    # Vulkan_INCLUDE_DIR (singular) is not reliably populated by FindVulkan across CMake
+    # versions; Vulkan_INCLUDE_DIRS (plural) is the documented output variable.
+    list(GET Vulkan_INCLUDE_DIRS 0 Vulkan_INCLUDE_DIR_RESOLVED)
+
+    # DXC (bundled with the Vulkan SDK) compiles HLSL -> SPIR-V for the Vulkan backend.
+    get_filename_component(Vulkan_LIB_DIR "${Vulkan_INCLUDE_DIR_RESOLVED}/../Lib" ABSOLUTE)
+    find_library(Vulkan_DXC_LIBRARY NAMES dxcompiler PATHS "${Vulkan_LIB_DIR}")
+    if(NOT Vulkan_DXC_LIBRARY)
+        message(FATAL_ERROR "dxcompiler library not found in Vulkan SDK (looked in ${Vulkan_LIB_DIR}); required for HLSL -> SPIR-V shader compilation")
+    endif()
+    target_link_libraries(PrismShared ${Vulkan_DXC_LIBRARY})
+    target_link_libraries(PrismStatic ${Vulkan_DXC_LIBRARY})
+
+    # SPIRV-Reflect (bundled with the Vulkan SDK) reflects compiled SPIR-V for name-based
+    # resource binding (descriptor set/binding lookup by shader variable name).
+    get_filename_component(Vulkan_SPIRV_REFLECT_DIR "${Vulkan_INCLUDE_DIR_RESOLVED}/../Source/SPIRV-Reflect" ABSOLUTE)
+    if(NOT EXISTS "${Vulkan_SPIRV_REFLECT_DIR}/spirv_reflect.c")
+        message(FATAL_ERROR "SPIRV-Reflect source not found in Vulkan SDK (looked in ${Vulkan_SPIRV_REFLECT_DIR})")
+    endif()
+    target_sources(PrismShared PRIVATE "${Vulkan_SPIRV_REFLECT_DIR}/spirv_reflect.c")
+    target_sources(PrismStatic PRIVATE "${Vulkan_SPIRV_REFLECT_DIR}/spirv_reflect.c")
+    target_include_directories(PrismShared PRIVATE "${Vulkan_SPIRV_REFLECT_DIR}")
+    target_include_directories(PrismStatic PRIVATE "${Vulkan_SPIRV_REFLECT_DIR}")
+
     add_subdirectory(external/vma)
     target_link_libraries(PrismShared GPUOpen::VulkanMemoryAllocator)
     target_link_libraries(PrismStatic GPUOpen::VulkanMemoryAllocator)
