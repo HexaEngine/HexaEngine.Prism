@@ -184,7 +184,7 @@ class VulkanSwapChain : public SwapChain
 	uint32_t currentImageIndex;
 	bool imageAcquired;
 
-	bool CreateOrResizeSwapchain(uint32_t width, uint32_t height, VkFormat format, uint32_t bufferCount);
+	bool CreateOrResizeSwapchain(uint32_t width, uint32_t height, Format format, uint32_t bufferCount);
 	void DestroySwapchainResources();
 
 public:

@@ -19,7 +19,7 @@ int main()
 
     DeviceDesc desc{};
     desc.type = BackendType::Vulkan;
-    desc.flags = DeviceFlags::Win32;
+    desc.flags = DeviceFlags::Win32 | DeviceFlags::Debug;
     desc.queues = &queueDesc;
     desc.queuesCount = 1;
     auto device = PrismDevice::Create(desc);

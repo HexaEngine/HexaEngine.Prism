@@ -6,6 +6,7 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include <SDL3/SDL_vulkan.h>
+#include <spirv_reflect.h>
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
@@ -622,17 +623,20 @@ bool VulkanDevice::CreateLogicalDevice()
 bool VulkanDevice::Initialize(const DeviceDesc& desc)
 {
     std::vector<const char*> layers;
-    uint32_t layerCount = 0;
-    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-    std::vector<VkLayerProperties> availableLayers(layerCount);
-    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-    for (auto& l : availableLayers)
+    if ((desc.flags & DeviceFlags::Debug) != DeviceFlags::None)
     {
-        if (strcmp(l.layerName, "VK_LAYER_KHRONOS_validation") == 0)
+        uint32_t layerCount = 0;
+        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+        std::vector<VkLayerProperties> availableLayers(layerCount);
+        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+        for (auto& l : availableLayers)
         {
-            layers.push_back("VK_LAYER_KHRONOS_validation");
+            if (strcmp(l.layerName, "VK_LAYER_KHRONOS_validation") == 0)
+            {
+                layers.push_back("VK_LAYER_KHRONOS_validation");
+            }
         }
     }
 
@@ -1489,6 +1493,61 @@ namespace
         info.pName = entryPoint && *entryPoint ? entryPoint : "main";
         return info;
     }
+
+    // Mirrors D3D11's auto-derivation of the vertex input layout from shader reflection
+    // (GetInputElementsFromSignature), used when the caller doesn't supply explicit
+    // InputElementDescriptions. Assumes a single interleaved vertex buffer at binding 0.
+    void ReflectVertexInputState(const PrismObj<Blob>& vertexSpirv, std::vector<VkVertexInputBindingDescription>& bindings, std::vector<VkVertexInputAttributeDescription>& attributes)
+    {
+        if (!vertexSpirv)
+        {
+            return;
+        }
+
+        SpvReflectShaderModule module = {};
+        if (spvReflectCreateShaderModule(vertexSpirv->GetLength(), vertexSpirv->GetData(), &module) != SPV_REFLECT_RESULT_SUCCESS)
+        {
+            return;
+        }
+
+        uint32_t count = 0;
+        spvReflectEnumerateInputVariables(&module, &count, nullptr);
+        std::vector<SpvReflectInterfaceVariable*> vars(count);
+        spvReflectEnumerateInputVariables(&module, &count, vars.data());
+
+        std::sort(vars.begin(), vars.end(), [](const SpvReflectInterfaceVariable* a, const SpvReflectInterfaceVariable* b) { return a->location < b->location; });
+
+        uint32_t offset = 0;
+        for (auto* var : vars)
+        {
+            if (var->built_in != -1)
+            {
+                continue; // e.g. SV_VertexID/SV_InstanceID: not backed by a vertex buffer attribute
+            }
+
+            VkVertexInputAttributeDescription attr = {};
+            attr.location = var->location;
+            attr.binding = 0;
+            attr.format = static_cast<VkFormat>(var->format);
+            attr.offset = offset;
+            attributes.push_back(attr);
+
+            uint32_t componentCount = var->numeric.vector.component_count > 0 ? var->numeric.vector.component_count : 1;
+            uint32_t componentWidth = var->numeric.scalar.width > 0 ? var->numeric.scalar.width / 8 : 4;
+            offset += componentCount * componentWidth;
+        }
+
+        spvReflectDestroyShaderModule(&module);
+
+        if (!attributes.empty())
+        {
+            VkVertexInputBindingDescription binding = {};
+            binding.binding = 0;
+            binding.stride = offset;
+            binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+            bindings.push_back(binding);
+        }
+    }
 }
 
 VulkanGraphicsPipeline::VulkanGraphicsPipeline(VulkanDevice* device, const GraphicsPipelineDesc& desc)
@@ -1588,8 +1647,14 @@ void VulkanGraphicsPipelineState::Create()
     if (vkGraphicsPipeline->GetPixelModule()) stages.push_back(MakeStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT, vkGraphicsPipeline->GetPixelModule(), vkGraphicsPipeline->GetDesc().pixelEntryPoint));
 
     // Vertex input: one binding per unique slot, AppendAligned offsets computed per slot.
+    // If the caller didn't supply explicit elements, derive them from the vertex shader's
+    // reflected input variables instead (mirrors D3D11's auto-derivation).
     std::vector<VkVertexInputBindingDescription> bindings;
     std::vector<VkVertexInputAttributeDescription> attributes;
+    if (desc.numInputElements == 0)
+    {
+        ReflectVertexInputState(vkGraphicsPipeline->GetVertexSpirv(), bindings, attributes);
+    }
     uint32_t runningOffsets[16] = {};
     bool slotSeen[16] = {};
     for (uint32_t i = 0; i < desc.numInputElements; ++i)
@@ -1894,7 +1959,7 @@ VulkanSwapChain::VulkanSwapChain(VulkanDevice* device, void* windowHandle, VkSur
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     vkCreateFence(device->GetDevice(), &fenceInfo, device->GetAllocationCallbacks(), &acquireFence);
 
-    CreateOrResizeSwapchain(desc.width, desc.height, ConvertFormat(desc.format), desc.bufferCount);
+    CreateOrResizeSwapchain(desc.width, desc.height, desc.format, desc.bufferCount);
 }
 
 VulkanSwapChain::~VulkanSwapChain()
@@ -1911,8 +1976,10 @@ VulkanSwapChain::~VulkanSwapChain()
     }
 }
 
-bool VulkanSwapChain::CreateOrResizeSwapchain(uint32_t width, uint32_t height, VkFormat format, uint32_t bufferCount)
+bool VulkanSwapChain::CreateOrResizeSwapchain(uint32_t width, uint32_t height, Format requestedFormat, uint32_t bufferCount)
 {
+    VkFormat format = ConvertFormat(requestedFormat);
+
     VkSurfaceCapabilitiesKHR caps;
     if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device->GetPhysicalDevice(), surface, &caps) != VK_SUCCESS)
     {
@@ -1979,6 +2046,7 @@ bool VulkanSwapChain::CreateOrResizeSwapchain(uint32_t width, uint32_t height, V
     texDesc.mipLevels = 1;
     texDesc.sampleDesc = { 1, 0 };
     texDesc.gpuAccessFlags = GpuAccessFlags::Write;
+    texDesc.format = requestedFormat;
 
     buffers.reserve(actualImageCount);
     for (VkImage image : images)
@@ -1989,6 +2057,7 @@ bool VulkanSwapChain::CreateOrResizeSwapchain(uint32_t width, uint32_t height, V
     desc.width = extent.width;
     desc.height = extent.height;
     desc.bufferCount = actualImageCount;
+    desc.format = requestedFormat;
 
     imageAcquired = false;
     return true;
@@ -2007,7 +2076,7 @@ void VulkanSwapChain::DestroySwapchainResources()
 void VulkanSwapChain::ResizeBuffers(uint32_t bufferCount, uint32_t width, uint32_t height, Format newFormat, SwapChainFlags swapChainFlags)
 {
     vkDeviceWaitIdle(device->GetDevice());
-    CreateOrResizeSwapchain(width, height, ConvertFormat(newFormat), bufferCount);
+    CreateOrResizeSwapchain(width, height, newFormat, bufferCount);
 }
 
 PrismObj<Texture2D> VulkanSwapChain::GetBuffer(size_t index)
