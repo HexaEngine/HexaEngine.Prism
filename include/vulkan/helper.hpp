@@ -4,7 +4,7 @@
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
-VkFormat ConvertFormat(const Format format)
+inline VkFormat ConvertFormat(const Format format)
 {
     switch (format)
     {
@@ -109,7 +109,7 @@ VkFormat ConvertFormat(const Format format)
     }
 }
 
-bool IsDepthStencilFormat(VkFormat format)
+inline bool IsDepthStencilFormat(VkFormat format)
 {
     switch (format)
     {
@@ -124,7 +124,7 @@ bool IsDepthStencilFormat(VkFormat format)
     }
 }
 
-VkImageAspectFlags ConvertAspectFlags(VkFormat format)
+inline VkImageAspectFlags ConvertAspectFlags(VkFormat format)
 {
     switch (format)
     {
@@ -140,7 +140,7 @@ VkImageAspectFlags ConvertAspectFlags(VkFormat format)
     }
 }
 
-VkImageUsageFlags ConvertImageUsageFlags(GpuAccessFlags flags, VkFormat format)
+inline VkImageUsageFlags ConvertImageUsageFlags(GpuAccessFlags flags, VkFormat format)
 {
     VkImageUsageFlags result = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
@@ -164,7 +164,7 @@ VkImageUsageFlags ConvertImageUsageFlags(GpuAccessFlags flags, VkFormat format)
     return result;
 }
 
-VkBufferUsageFlags ConvertBufferUsageFlags(const BufferDesc& desc)
+inline VkBufferUsageFlags ConvertBufferUsageFlags(const BufferDesc& desc)
 {
     VkBufferUsageFlags result = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
@@ -191,7 +191,7 @@ VkBufferUsageFlags ConvertBufferUsageFlags(const BufferDesc& desc)
     return result;
 }
 
-VmaAllocationCreateInfo ConvertAllocationInfo(CpuAccessFlags cpuAccess, GpuAccessFlags)
+inline VmaAllocationCreateInfo ConvertAllocationInfo(CpuAccessFlags cpuAccess, GpuAccessFlags)
 {
     VmaAllocationCreateInfo info = {};
     info.usage = VMA_MEMORY_USAGE_AUTO;
@@ -211,7 +211,7 @@ VmaAllocationCreateInfo ConvertAllocationInfo(CpuAccessFlags cpuAccess, GpuAcces
     return info;
 }
 
-VkSampleCountFlagBits ConvertSampleCount(uint32_t count)
+inline VkSampleCountFlagBits ConvertSampleCount(uint32_t count)
 {
     switch (count)
     {
@@ -226,7 +226,7 @@ VkSampleCountFlagBits ConvertSampleCount(uint32_t count)
     }
 }
 
-VkImage GetVkImage(Resource* resource)
+inline VkImage GetVkImage(Resource* resource)
 {
     if (auto* tex = dynamic_cast<VulkanTexture2D*>(resource)) return tex->GetImage();
     if (auto* tex = dynamic_cast<VulkanTexture1D*>(resource)) return tex->GetImage();
@@ -235,7 +235,7 @@ VkImage GetVkImage(Resource* resource)
 }
 
 // D3D convention: Format::Unknown in a view desc means "inherit the resource's own format".
-Format GetResourceFormat(Resource* resource)
+inline Format GetResourceFormat(Resource* resource)
 {
     if (auto* tex = dynamic_cast<VulkanTexture2D*>(resource)) return tex->GetDesc().format;
     if (auto* tex = dynamic_cast<VulkanTexture1D*>(resource)) return tex->GetDesc().format;
@@ -243,12 +243,12 @@ Format GetResourceFormat(Resource* resource)
     return Format::Unknown;
 }
 
-Format ResolveViewFormat(Resource* resource, Format requested)
+inline Format ResolveViewFormat(Resource* resource, Format requested)
 {
     return requested == Format::Unknown ? GetResourceFormat(resource) : requested;
 }
 
-VkImageLayout GetTrackedLayout(Resource* resource)
+inline VkImageLayout GetTrackedLayout(Resource* resource)
 {
     if (auto* tex = dynamic_cast<VulkanTexture2D*>(resource)) return tex->GetCurrentLayout();
     if (auto* tex = dynamic_cast<VulkanTexture1D*>(resource)) return tex->GetCurrentLayout();
@@ -256,7 +256,7 @@ VkImageLayout GetTrackedLayout(Resource* resource)
     return VK_IMAGE_LAYOUT_UNDEFINED;
 }
 
-void SetTrackedLayout(Resource* resource, VkImageLayout layout)
+inline void SetTrackedLayout(Resource* resource, VkImageLayout layout)
 {
     if (auto* tex = dynamic_cast<VulkanTexture2D*>(resource)) { tex->SetCurrentLayout(layout); return; }
     if (auto* tex = dynamic_cast<VulkanTexture1D*>(resource)) { tex->SetCurrentLayout(layout); return; }
@@ -265,7 +265,7 @@ void SetTrackedLayout(Resource* resource, VkImageLayout layout)
 
 
 
-VkFilter ConvertMinMagFilter(Filter filter)
+inline VkFilter ConvertMinMagFilter(Filter filter)
 {
     switch (filter)
     {
@@ -283,7 +283,7 @@ VkFilter ConvertMinMagFilter(Filter filter)
     }
 }
 
-VkSamplerMipmapMode ConvertMipmapMode(Filter filter)
+inline VkSamplerMipmapMode ConvertMipmapMode(Filter filter)
 {
     switch (filter)
     {
@@ -301,7 +301,7 @@ VkSamplerMipmapMode ConvertMipmapMode(Filter filter)
     }
 }
 
-bool IsAnisotropicFilter(Filter filter)
+inline bool IsAnisotropicFilter(Filter filter)
 {
     switch (filter)
     {
@@ -315,13 +315,13 @@ bool IsAnisotropicFilter(Filter filter)
     }
 }
 
-bool IsComparisonFilter(Filter filter)
+inline bool IsComparisonFilter(Filter filter)
 {
     return static_cast<uint32_t>(filter) >= static_cast<uint32_t>(Filter::ComparisonMinMagMipPoint)
         && static_cast<uint32_t>(filter) <= static_cast<uint32_t>(Filter::ComparisonAnisotropic);
 }
 
-VkSamplerAddressMode ConvertAddressMode(TextureAddressMode mode)
+inline VkSamplerAddressMode ConvertAddressMode(TextureAddressMode mode)
 {
     switch (mode)
     {
@@ -334,7 +334,7 @@ VkSamplerAddressMode ConvertAddressMode(TextureAddressMode mode)
     }
 }
 
-VkCompareOp ConvertCompareOp(ComparisonFunc func)
+inline VkCompareOp ConvertCompareOp(ComparisonFunc func)
 {
     switch (func)
     {
@@ -350,7 +350,7 @@ VkCompareOp ConvertCompareOp(ComparisonFunc func)
     }
 }
 
-VkShaderStageFlagBits ConvertStage(ShaderStage stage)
+inline VkShaderStageFlagBits ConvertStage(ShaderStage stage)
 {
     switch (stage)
     {
@@ -364,7 +364,7 @@ VkShaderStageFlagBits ConvertStage(ShaderStage stage)
     }
 }
 
-ShaderParameterType ConvertParameterType(VkDescriptorType type)
+inline ShaderParameterType ConvertParameterType(VkDescriptorType type)
 {
     switch (type)
     {
@@ -375,7 +375,7 @@ ShaderParameterType ConvertParameterType(VkDescriptorType type)
     }
 }
 
-VkPrimitiveTopology ConvertTopology(PrimitiveTopology topology)
+inline VkPrimitiveTopology ConvertTopology(PrimitiveTopology topology)
 {
     switch (topology)
     {
@@ -397,19 +397,19 @@ VkPrimitiveTopology ConvertTopology(PrimitiveTopology topology)
     }
 }
 
-uint32_t GetPatchControlPoints(PrimitiveTopology topology)
+inline uint32_t GetPatchControlPoints(PrimitiveTopology topology)
 {
     uint32_t value = static_cast<uint32_t>(topology);
     uint32_t base = static_cast<uint32_t>(PrimitiveTopology::PatchListWith1ControlPoints);
     return value >= base ? value - base + 1 : 0;
 }
 
-VkPolygonMode ConvertFillMode(FillMode mode)
+inline VkPolygonMode ConvertFillMode(FillMode mode)
 {
     return mode == FillMode::Wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 }
 
-VkCullModeFlags ConvertCullMode(CullMode mode)
+inline VkCullModeFlags ConvertCullMode(CullMode mode)
 {
     switch (mode)
     {
@@ -420,7 +420,7 @@ VkCullModeFlags ConvertCullMode(CullMode mode)
     }
 }
 
-VkBlendFactor ConvertBlend(Blend blend)
+inline VkBlendFactor ConvertBlend(Blend blend)
 {
     switch (blend)
     {
@@ -445,7 +445,7 @@ VkBlendFactor ConvertBlend(Blend blend)
     }
 }
 
-VkBlendOp ConvertBlendOp(BlendOperation op)
+inline VkBlendOp ConvertBlendOp(BlendOperation op)
 {
     switch (op)
     {
@@ -458,7 +458,7 @@ VkBlendOp ConvertBlendOp(BlendOperation op)
     }
 }
 
-VkLogicOp ConvertLogicOp(LogicOperation op)
+inline VkLogicOp ConvertLogicOp(LogicOperation op)
 {
     switch (op)
     {
@@ -482,7 +482,7 @@ VkLogicOp ConvertLogicOp(LogicOperation op)
     }
 }
 
-VkStencilOp ConvertStencilOp(StencilOperation op)
+inline VkStencilOp ConvertStencilOp(StencilOperation op)
 {
     switch (op)
     {
@@ -498,7 +498,7 @@ VkStencilOp ConvertStencilOp(StencilOperation op)
     }
 }
 
-VkStencilOpState ConvertStencilOpState(const DepthStencilOperationDescription& stencilDesc, uint8_t readMask, uint8_t writeMask, uint32_t reference)
+inline VkStencilOpState ConvertStencilOpState(const DepthStencilOperationDescription& stencilDesc, uint8_t readMask, uint8_t writeMask, uint32_t reference)
 {
     VkStencilOpState state = {};
     state.failOp = ConvertStencilOp(stencilDesc.stencilFailOp);
@@ -511,7 +511,7 @@ VkStencilOpState ConvertStencilOpState(const DepthStencilOperationDescription& s
     return state;
 }
 
-VkColorComponentFlags ConvertColorWriteMask(ColorWriteEnable mask)
+inline VkColorComponentFlags ConvertColorWriteMask(ColorWriteEnable mask)
 {
     VkColorComponentFlags result = 0;
     uint8_t m = static_cast<uint8_t>(mask);
@@ -522,7 +522,7 @@ VkColorComponentFlags ConvertColorWriteMask(ColorWriteEnable mask)
     return result;
 }
 
-uint32_t GetFormatByteSize(Format format)
+inline uint32_t GetFormatByteSize(Format format)
 {
     switch (format)
     {
