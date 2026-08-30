@@ -213,9 +213,9 @@ public:
 
 	CommandList* GetImmediateCommandList() override;
 	PrismObj<Buffer> CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData) override;
-	PrismObj<Texture1D> CreateTexture1D(const Texture1DDesc& desc) override;
-	PrismObj<Texture2D> CreateTexture2D(const Texture2DDesc& desc) override;
-	PrismObj<Texture3D> CreateTexture3D(const Texture3DDesc& desc) override;
+	PrismObj<Texture1D> CreateTexture1D(const Texture1DDesc& desc, const SubresourceData* initialData = nullptr) override;
+	PrismObj<Texture2D> CreateTexture2D(const Texture2DDesc& desc, const SubresourceData* initialData = nullptr) override;
+	PrismObj<Texture3D> CreateTexture3D(const Texture3DDesc& desc, const SubresourceData* initialData = nullptr) override;
 	PrismObj<RenderTargetView> CreateRenderTargetView(Resource* resource, const RenderTargetViewDesc& desc) override;
 	PrismObj<ShaderResourceView> CreateShaderResourceView(Resource* resource, const ShaderResourceViewDesc& desc) override;
 	PrismObj<DepthStencilView> CreateDepthStencilView(Resource* resource, const DepthStencilViewDesc& desc) override;

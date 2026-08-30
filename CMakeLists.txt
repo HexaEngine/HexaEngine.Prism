@@ -22,15 +22,18 @@ if (NOT WIN32)
     set(PrismD3D11 OFF)
 endif()
 
-file(GLOB LIBRARY_SOURCES src/*.cpp)
+# CONFIGURE_DEPENDS makes CMake re-check these directories on every build, so a newly added
+# .cpp is picked up automatically instead of silently missing from the build until the next
+# manual reconfigure.
+file(GLOB LIBRARY_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
 if(PrismD3D11)
-    file(GLOB D3D11_SOURCES src/d3d11/*.cpp)
+    file(GLOB D3D11_SOURCES CONFIGURE_DEPENDS src/d3d11/*.cpp)
     list(APPEND LIBRARY_SOURCES ${D3D11_SOURCES})
 endif()
 
 if(PrismVulkan)
-    file(GLOB VULKAN_SOURCES src/vulkan/*.cpp)
+    file(GLOB VULKAN_SOURCES CONFIGURE_DEPENDS src/vulkan/*.cpp)
     list(APPEND LIBRARY_SOURCES ${VULKAN_SOURCES})
 endif()
 

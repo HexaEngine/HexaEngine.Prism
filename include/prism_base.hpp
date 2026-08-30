@@ -1,5 +1,7 @@
 #pragma once
 #include "common.hpp"
+#include <chrono>
+#include <thread>
 
 
 #ifndef HEXA_MATH_VECTOR_HPP
@@ -452,6 +454,53 @@ public:
 			current->callback(std::forward<TArgs>(args)...);
 			current = current->next;
 		}
+	}
+};
+
+class WaitFlag
+{
+	std::atomic<int> state{ 0 };
+
+public:
+	WaitFlag() = default;
+
+	void Signal()
+	{
+		state.store(1, std::memory_order_release);
+		state.notify_all();
+	}
+
+	void Wait()
+	{
+		int value;
+		while ((value = state.load(std::memory_order_acquire)) == 0)
+		{
+			state.wait(value, std::memory_order_acquire);
+		}
+	}
+
+	bool Wait(std::chrono::milliseconds timeout)
+	{
+		if (timeout.count() == 0)
+		{
+			return state.load(std::memory_order_acquire) != 0;
+		}
+
+		auto end = std::chrono::steady_clock::now() + timeout;
+		while (state.load(std::memory_order_acquire) == 0)
+		{
+			if (std::chrono::steady_clock::now() >= end)
+			{
+				return false;
+			}
+			std::this_thread::yield();
+		}
+		return true;
+	}
+
+	void Reset()
+	{
+		state.store(0, std::memory_order_release);
 	}
 };
 

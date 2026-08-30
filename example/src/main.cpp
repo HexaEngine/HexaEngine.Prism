@@ -1,5 +1,6 @@
 #include "main.hpp"
 #include <prism.hpp>
+#include <prism_texture_loader.hpp>
 #include <SDL3/SDL_video.h>
 #include <SDL3/SDL.h>
 
@@ -22,6 +23,14 @@ int main()
     desc.flags = DeviceFlags::Win32 | DeviceFlags::Debug;
     desc.queues = &queueDesc;
     desc.queuesCount = 1;
+    desc.debugCallback = [](DebugMessageSeverity severity, const char* message, void* userData)
+    {
+        const char* prefix = severity == DebugMessageSeverity::Error ? "[Error] "
+            : severity == DebugMessageSeverity::Warning ? "[Warning] "
+            : severity == DebugMessageSeverity::Info ? "[Info] "
+            : "[Verbose] ";
+        std::cout << prefix << message << std::endl;
+    };
     auto device = PrismDevice::Create(desc);
     auto queue = device->GetCommandQueue(0);
     auto allocator = device->CreateCommandAllocator(CommandListType::Direct);
@@ -49,14 +58,16 @@ int main()
     {
         float3 pos : POSITION;
         float4 color : COLOR;
+        float2 uv : TEXCOORD;
     };
 
     struct PSInput
     {
         float4 pos : SV_POSITION;
         float4 color : COLOR;
+        float2 uv : TEXCOORD;
     };
-	
+
 	cbuffer constantBuffer
 	{
 		float4x4 transform;
@@ -67,6 +78,7 @@ int main()
         PSInput output;
         output.pos = mul(float4(input.pos, 1.0), transform);
         output.color = input.color;
+        output.uv = input.uv;
         return output;
     }
     )");
@@ -74,11 +86,15 @@ int main()
     {
         float4 pos : SV_POSITION;
         float4 color : COLOR;
+        float2 uv : TEXCOORD;
     };
+
+    Texture2D tex;
+    SamplerState samp;
 
     float4 main(PSInput input) : SV_TARGET
     {
-        return input.color;
+        return input.color * tex.Sample(samp, input.uv);
     }
     )");
 
@@ -95,20 +111,43 @@ int main()
 
 	BufferDesc vertexBufferDesc = {};
 	vertexBufferDesc.type = BufferType::VertexBuffer;
-	vertexBufferDesc.widthInBytes = sizeof(float) * 7 * 3;
+	vertexBufferDesc.widthInBytes = sizeof(float) * 9 * 3;
 	vertexBufferDesc.cpuAccessFlags = CpuAccessFlags::None;
 	vertexBufferDesc.gpuAccessFlags = GpuAccessFlags::Immutable;
 
 	SubresourceData initialData = {};
     float vertexData[] = {
-        // Position         // Color
-         0.0f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-         0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        // Position           // Color              // UV
+         0.0f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f, 1.0f,  0.5f, 0.0f,
+         0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f, 1.0f,  1.0f, 1.0f,
+        -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f, 1.0f,  0.0f, 1.0f,
 	};
 
 	initialData.data = vertexData;
 	auto vertexBuffer = device->CreateBuffer(vertexBufferDesc, &initialData);
+
+	// Drop your own DDS/TGA/HDR/PNG/JPG file at this path (relative to the working directory).
+	TextureLoader textureLoader(device);
+	auto texture = textureLoader.LoadTexture2D("C:\\Users\\junam\\Desktop\\itjustworks.png");
+
+	ShaderResourceViewDesc srvDesc = {};
+	srvDesc.dimension = ShaderResourceViewDimension::Texture2D;
+	srvDesc.texture2D.mostDetailedMip = 0;
+	srvDesc.texture2D.mipLevels = texture->GetDesc().mipLevels;
+	auto textureSrv = device->CreateShaderResourceView(texture, srvDesc);
+
+	SamplerDesc samplerDesc = {};
+	samplerDesc.filter = Filter::MinMagMipLinear;
+	samplerDesc.addressU = TextureAddressMode::Wrap;
+	samplerDesc.addressV = TextureAddressMode::Wrap;
+	samplerDesc.addressW = TextureAddressMode::Wrap;
+	samplerDesc.maxAnisotropy = 1;
+	samplerDesc.minLOD = 0.0f;
+	samplerDesc.maxLOD = 1000.0f;
+	auto sampler = device->CreateSamplerState(samplerDesc);
+
+	pso->GetBindings().SetSRV("tex", textureSrv);
+	pso->GetBindings().SetSampler("samp", sampler);
 
     BufferDesc constantBufferDesc = {};
 	constantBufferDesc.type = BufferType::ConstantBuffer;
@@ -145,7 +184,7 @@ int main()
         ctx->WriteArray(constantBuffer, transformData, 16);
 
         ctx->ClearRenderTargetView(rtv, { 0.3f,0.3f,0.3f,1 });
-		ctx->SetVertexBuffer(0, vertexBuffer, sizeof(float) * 7, 0);
+		ctx->SetVertexBuffer(0, vertexBuffer, sizeof(float) * 9, 0);
         ctx->SetRenderTarget(rtv, nullptr);
 		ctx->SetViewport({width, height});
 		ctx->SetGraphicsPipelineState(pso);

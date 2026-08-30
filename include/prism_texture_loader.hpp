@@ -39,7 +39,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	struct TextureFileDescription
 	{
-		AssetPath path;
+		const char* path = "";
 		TextureDimension dimension = TextureDimension::Texture2D;
 		uint32_t mipLevels = 0;
 		GpuAccessFlags gpuAccessFlags = GpuAccessFlags::Read;
@@ -66,25 +66,25 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		void SetScalingFactor(float value) { scalingFactor = value; }
 
 		// Raw image loading (no texture creation). Returns false (image left empty) on failure.
-		bool LoadFromFile(const std::string& filename, DirectX::ScratchImage& outImage) const;
-		bool LoadFromAssets(const AssetPath& path, DirectX::ScratchImage& outImage) const;
-		bool LoadFromMemory(const std::string& filenameHint, const uint8_t* data, size_t length, DirectX::ScratchImage& outImage) const;
+		bool LoadFromFile(const char* filename, DirectX::ScratchImage& outImage) const;
+		bool LoadFromAssets(const char* path, DirectX::ScratchImage& outImage) const;
+		bool LoadFromMemory(const char* filenameHint, const uint8_t* data, size_t length, DirectX::ScratchImage& outImage) const;
 		bool LoadFromMemory(TexFileFormat format, const uint8_t* data, size_t length, DirectX::ScratchImage& outImage) const;
 
 		// Convenience overload picking plain-filesystem vs. asset-namespace loading from the path.
-		bool Load(const AssetPath& path, DirectX::ScratchImage& outImage) const;
+		bool Load(const char* path, DirectX::ScratchImage& outImage) const;
 
 		PrismObj<Texture1D> LoadTexture1D(const TextureFileDescription& desc) const;
 		PrismObj<Texture2D> LoadTexture2D(const TextureFileDescription& desc) const;
 		PrismObj<Texture3D> LoadTexture3D(const TextureFileDescription& desc) const;
 
-		PrismObj<Texture1D> LoadTexture1D(const AssetPath& path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const;
-		PrismObj<Texture2D> LoadTexture2D(const AssetPath& path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const;
-		PrismObj<Texture3D> LoadTexture3D(const AssetPath& path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const;
+		PrismObj<Texture1D> LoadTexture1D(const char* path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const;
+		PrismObj<Texture2D> LoadTexture2D(const char* path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const;
+		PrismObj<Texture3D> LoadTexture3D(const char* path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const;
 
-		PrismObj<Texture1D> LoadTexture1D(const AssetPath& path) const;
-		PrismObj<Texture2D> LoadTexture2D(const AssetPath& path) const;
-		PrismObj<Texture3D> LoadTexture3D(const AssetPath& path) const;
+		PrismObj<Texture1D> LoadTexture1D(const char* path) const;
+		PrismObj<Texture2D> LoadTexture2D(const char* path) const;
+		PrismObj<Texture3D> LoadTexture3D(const char* path) const;
 
 	private:
 		void ApplyLoaderFlags(DirectX::ScratchImage& image) const;

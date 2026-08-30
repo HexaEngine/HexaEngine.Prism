@@ -5,15 +5,15 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	namespace
 	{
-		TexFileFormat FormatFromExtension(std::string_view filename)
+		TexFileFormat FormatFromExtension(StringSpan filename)
 		{
-			size_t dot = filename.find_last_of('.');
-			if (dot == std::string_view::npos)
+			auto dot = filename.LastIndexOf('.');
+			if (dot.IsInvalid())
 			{
 				return TexFileFormat::WIC;
 			}
 
-			std::string ext(filename.substr(dot));
+			std::string ext = filename.slice(dot.value).str();
 			for (char& c : ext)
 			{
 				c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -30,10 +30,6 @@ HEXA_PRISM_NAMESPACE_BEGIN
 			return static_cast<Format>(forceSRGB ? DirectX::MakeSRGB(format) : format);
 		}
 
-		// Flattens a ScratchImage into Prism's array-major/mip-minor SubresourceData convention
-		// (see PrismDevice::CreateTexture1D/2D/3D). For 3D, one entry per mip level - DirectXTex
-		// lays every depth slice of a mip out contiguously, so GetImage(mip,0,0)'s pixel pointer
-		// plus slicePitch stepping is exactly what D3D's per-mip Texture3D subresource expects.
 		void BuildSubresourceData(const DirectX::ScratchImage& image, bool is3D, std::vector<SubresourceData>& out)
 		{
 			const DirectX::TexMetadata& metadata = image.GetMetadata();
@@ -91,12 +87,12 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		return SUCCEEDED(hr);
 	}
 
-	bool TextureLoader::LoadFromMemory(const std::string& filenameHint, const uint8_t* data, size_t length, DirectX::ScratchImage& outImage) const
+	bool TextureLoader::LoadFromMemory(const char* filenameHint, const uint8_t* data, size_t length, DirectX::ScratchImage& outImage) const
 	{
 		return LoadFromMemory(FormatFromExtension(filenameHint), data, length, outImage);
 	}
 
-	bool TextureLoader::LoadFromFile(const std::string& filename, DirectX::ScratchImage& outImage) const
+	bool TextureLoader::LoadFromFile(const char* filename, DirectX::ScratchImage& outImage) const
 	{
 		std::ifstream file(filename, std::ios::binary | std::ios::ate);
 		if (!file)
@@ -116,19 +112,21 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		return LoadFromMemory(filename, data.data(), data.size(), outImage);
 	}
 
-	bool TextureLoader::LoadFromAssets(const AssetPath& path, DirectX::ScratchImage& outImage) const
+	bool TextureLoader::LoadFromAssets(const char* path, DirectX::ScratchImage& outImage) const
 	{
+		AssetPath assetPath(path);
+
 		std::vector<uint8_t> data;
-		if (!ReadAsset(path, data))
+		if (!ReadAsset(assetPath, data))
 		{
 			return false;
 		}
-		return LoadFromMemory(std::string(path.GetPath()), data.data(), data.size(), outImage);
+		return LoadFromMemory(assetPath.GetPath().data(), data.data(), data.size(), outImage);
 	}
 
-	bool TextureLoader::Load(const AssetPath& path, DirectX::ScratchImage& outImage) const
+	bool TextureLoader::Load(const char* path, DirectX::ScratchImage& outImage) const
 	{
-		return path.HasNamespace() ? LoadFromAssets(path, outImage) : LoadFromFile(path.raw, outImage);
+		return AssetPath(path).HasNamespace() ? LoadFromAssets(path, outImage) : LoadFromFile(path, outImage);
 	}
 
 	void TextureLoader::ApplyLoaderFlags(DirectX::ScratchImage& image) const
@@ -295,7 +293,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		return CreateTexture3DFromImage(image, desc);
 	}
 
-	PrismObj<Texture1D> TextureLoader::LoadTexture1D(const AssetPath& path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const
+	PrismObj<Texture1D> TextureLoader::LoadTexture1D(const char* path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const
 	{
 		TextureFileDescription desc = {};
 		desc.path = path;
@@ -306,7 +304,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		return LoadTexture1D(desc);
 	}
 
-	PrismObj<Texture2D> TextureLoader::LoadTexture2D(const AssetPath& path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const
+	PrismObj<Texture2D> TextureLoader::LoadTexture2D(const char* path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const
 	{
 		TextureFileDescription desc = {};
 		desc.path = path;
@@ -317,7 +315,7 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		return LoadTexture2D(desc);
 	}
 
-	PrismObj<Texture3D> TextureLoader::LoadTexture3D(const AssetPath& path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const
+	PrismObj<Texture3D> TextureLoader::LoadTexture3D(const char* path, GpuAccessFlags gpuAccessFlags, CpuAccessFlags cpuAccessFlags, ResourceMiscFlags miscFlags) const
 	{
 		TextureFileDescription desc = {};
 		desc.path = path;
@@ -328,17 +326,17 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		return LoadTexture3D(desc);
 	}
 
-	PrismObj<Texture1D> TextureLoader::LoadTexture1D(const AssetPath& path) const
+	PrismObj<Texture1D> TextureLoader::LoadTexture1D(const char* path) const
 	{
 		return LoadTexture1D(path, GpuAccessFlags::Read, CpuAccessFlags::None, ResourceMiscFlags::None);
 	}
 
-	PrismObj<Texture2D> TextureLoader::LoadTexture2D(const AssetPath& path) const
+	PrismObj<Texture2D> TextureLoader::LoadTexture2D(const char* path) const
 	{
 		return LoadTexture2D(path, GpuAccessFlags::Read, CpuAccessFlags::None, ResourceMiscFlags::None);
 	}
 
-	PrismObj<Texture3D> TextureLoader::LoadTexture3D(const AssetPath& path) const
+	PrismObj<Texture3D> TextureLoader::LoadTexture3D(const char* path) const
 	{
 		return LoadTexture3D(path, GpuAccessFlags::Read, CpuAccessFlags::None, ResourceMiscFlags::None);
 	}

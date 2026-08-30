@@ -1,55 +1,48 @@
 #pragma once
 #include "prism_base.hpp"
-#include <string_view>
+#include "utils/span.hpp"
 
 HEXA_PRISM_NAMESPACE_BEGIN
 
-	// Mirrors HexaEngine.Core.IO.AssetPath: an optional "namespace:" prefix (e.g. "assets:foo.dds")
-	// routes the path through the registered asset-read callback instead of the plain filesystem.
-	// A single-character prefix (e.g. a Windows drive letter "C:") is not treated as a namespace.
+	using HEXA_UTILS_NAMESPACE::StringSpan;
+	using HEXA_UTILS_NAMESPACE::Index;
+
 	struct AssetPath
 	{
-		std::string raw;
+		String raw;
 
 		AssetPath() = default;
-		AssetPath(std::string path) : raw(std::move(path)) {}
 		AssetPath(const char* path) : raw(path) {}
 
-		std::string_view GetNamespace() const
+		StringSpan GetNamespace() const
 		{
-			size_t sep = FindSeparator();
-			return sep == std::string::npos ? std::string_view{} : std::string_view(raw).substr(0, sep);
+			auto sep = FindSeparator();
+			return sep.IsInvalid() ? StringSpan{} : StringSpan(raw.data(), raw.size()).slice(0, sep.value);
 		}
 
-		std::string_view GetPath() const
+		StringSpan GetPath() const
 		{
-			size_t sep = FindSeparator();
-			return sep == std::string::npos ? std::string_view(raw) : std::string_view(raw).substr(sep + 1);
+			auto sep = FindSeparator();
+			return sep.IsInvalid() ? StringSpan(raw.data(), raw.size()) : StringSpan(raw.data(), raw.size()).slice(sep.value + 1);
 		}
 
-		bool HasNamespace() const { return FindSeparator() != std::string::npos; }
+		bool HasNamespace() const { return FindSeparator().IsValid(); }
 
-		bool operator==(const AssetPath& other) const { return raw == other.raw; }
-		bool operator!=(const AssetPath& other) const { return raw != other.raw; }
+		bool operator==(const AssetPath& other) const { return StringSpan(raw.data(), raw.size()) == StringSpan(other.raw.data(), other.raw.size()); }
+		bool operator!=(const AssetPath& other) const { return !(*this == other); }
 
 	private:
-		size_t FindSeparator() const
+		Index FindSeparator() const
 		{
-			size_t sep = raw.find(':');
-			return sep == 1 ? std::string::npos : sep;
+			auto sep = StringSpan(raw.data(), raw.size()).find(':');
+			return sep.IsValid() && sep.value == 1 ? Index::Invalid() : sep;
 		}
 	};
 
-	// Reads the full contents of an asset path, returning nullptr if not found. Prism has no
-	// virtual filesystem of its own; the host application proxies asset reads through this
-	// callback (mirroring HexaEngine.Core.IO.FileSystem.TryOpenRead). Plain C function pointer,
-	// not std::function - must stay P/Invoke-marshalable from C# bindings. On success the
-	// callback allocates the returned buffer via PrismAlloc and writes its length to *outSize;
-	// the caller releases it with FreeAssetData().
 	using AssetReadCallback = uint8_t*(*)(const char* path, size_t* outSize, void* userData);
+	using AssetFreeCallback = void(*)(uint8_t* data, void* userData);
 
-	void SetAssetReadCallback(AssetReadCallback callback, void* userData = nullptr);
+	void SetAssetReadCallback(AssetReadCallback readCallback, AssetFreeCallback freeCallback, void* userData = nullptr);
 	bool ReadAsset(const AssetPath& path, std::vector<uint8_t>& outData);
-	void FreeAssetData(uint8_t* data);
 
 HEXA_PRISM_NAMESPACE_END

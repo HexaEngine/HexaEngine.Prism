@@ -743,7 +743,27 @@ PrismObj<Buffer> D3D11GraphicsDevice::CreateBuffer(const BufferDesc& desc, const
 	return MakePrismObj<D3D11Buffer>(desc, std::move(d3dBuffer));
 }
 
-PrismObj<Texture1D> D3D11GraphicsDevice::CreateTexture1D(const Texture1DDesc& desc)
+namespace
+{
+	uarray<D3D11_SUBRESOURCE_DATA> ConvertInitialData(const SubresourceData* initialData, size_t count)
+	{
+		if (!initialData)
+		{
+			return {};
+		}
+
+		uarray<D3D11_SUBRESOURCE_DATA> result = make_uarray_uninitialized<D3D11_SUBRESOURCE_DATA>(count);
+		for (size_t i = 0; i < count; ++i)
+		{
+			result[i].pSysMem = initialData[i].data;
+			result[i].SysMemPitch = initialData[i].rowPitch;
+			result[i].SysMemSlicePitch = initialData[i].slicePitch;
+		}
+		return result;
+	}
+}
+
+PrismObj<Texture1D> D3D11GraphicsDevice::CreateTexture1D(const Texture1DDesc& desc, const SubresourceData* initialData)
 {
 	D3D11_TEXTURE1D_DESC texDesc = {};
 	texDesc.Width = desc.width;
@@ -755,8 +775,10 @@ PrismObj<Texture1D> D3D11GraphicsDevice::CreateTexture1D(const Texture1DDesc& de
 	texDesc.CPUAccessFlags = ConvertCpuAccessFlags(desc.cpuAccessFlags);
 	texDesc.MiscFlags = ConvertResourceMiscFlags(desc.miscFlags);
 
+	auto subresources = ConvertInitialData(initialData, static_cast<size_t>(desc.arraySize) * desc.mipLevels);
+
 	ComPtr<ID3D11Texture1D> d3dTexture;
-	const HRESULT hr = device->CreateTexture1D(&texDesc, nullptr, &d3dTexture);
+	const HRESULT hr = device->CreateTexture1D(&texDesc, subresources.data(), &d3dTexture);
 	if (FAILED(hr))
 	{
 		return {};
@@ -765,7 +787,7 @@ PrismObj<Texture1D> D3D11GraphicsDevice::CreateTexture1D(const Texture1DDesc& de
 	return MakePrismObj<D3D11Texture1D>(desc, std::move(d3dTexture));
 }
 
-PrismObj<Texture2D> D3D11GraphicsDevice::CreateTexture2D(const Texture2DDesc& desc)
+PrismObj<Texture2D> D3D11GraphicsDevice::CreateTexture2D(const Texture2DDesc& desc, const SubresourceData* initialData)
 {
 	D3D11_TEXTURE2D_DESC texDesc = {};
 	texDesc.Width = desc.width;
@@ -780,8 +802,10 @@ PrismObj<Texture2D> D3D11GraphicsDevice::CreateTexture2D(const Texture2DDesc& de
 	texDesc.CPUAccessFlags = ConvertCpuAccessFlags(desc.cpuAccessFlags);
 	texDesc.MiscFlags = ConvertResourceMiscFlags(desc.miscFlags);
 
+	auto subresources = ConvertInitialData(initialData, static_cast<size_t>(desc.arraySize) * desc.mipLevels);
+
 	ComPtr<ID3D11Texture2D> d3dTexture;
-	const HRESULT hr = device->CreateTexture2D(&texDesc, nullptr, &d3dTexture);
+	const HRESULT hr = device->CreateTexture2D(&texDesc, subresources.data(), &d3dTexture);
 	if (FAILED(hr))
 	{
 		return {};
@@ -790,7 +814,7 @@ PrismObj<Texture2D> D3D11GraphicsDevice::CreateTexture2D(const Texture2DDesc& de
 	return MakePrismObj<D3D11Texture2D>(desc, std::move(d3dTexture));
 }
 
-PrismObj<Texture3D> D3D11GraphicsDevice::CreateTexture3D(const Texture3DDesc& desc)
+PrismObj<Texture3D> D3D11GraphicsDevice::CreateTexture3D(const Texture3DDesc& desc, const SubresourceData* initialData)
 {
 	D3D11_TEXTURE3D_DESC texDesc = {};
 	texDesc.Width = desc.width;
@@ -803,8 +827,11 @@ PrismObj<Texture3D> D3D11GraphicsDevice::CreateTexture3D(const Texture3DDesc& de
 	texDesc.CPUAccessFlags = ConvertCpuAccessFlags(desc.cpuAccessFlags);
 	texDesc.MiscFlags = ConvertResourceMiscFlags(desc.miscFlags);
 
+	// Texture3D has no array slices; D3D11_SUBRESOURCE_DATA is indexed by mip level only.
+	auto subresources = ConvertInitialData(initialData, desc.mipLevels);
+
 	ComPtr<ID3D11Texture3D> d3dTexture;
-	const HRESULT hr = device->CreateTexture3D(&texDesc, nullptr, &d3dTexture);
+	const HRESULT hr = device->CreateTexture3D(&texDesc, subresources.data(), &d3dTexture);
 	if (FAILED(hr))
 	{
 		return {};

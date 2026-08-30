@@ -6,6 +6,7 @@
 HEXA_PRISM_NAMESPACE_BEGIN
 
 class VulkanDevice;
+class VulkanUploadQueue;
 
 class VulkanDeviceChild
 {
@@ -309,15 +310,15 @@ public:
 class VulkanCommandQueue : public CommandQueue
 {
 	VulkanDevice* device;
-	VkQueue queue;
+	PrismObj<VulkanQueueStore> queue;
 
 public:
-	VulkanCommandQueue(const CommandQueueDesc& desc, VulkanDevice* device, VkQueue queue) : CommandQueue(desc), device(device), queue(queue) {}
+	VulkanCommandQueue(const CommandQueueDesc& desc, VulkanDevice* device, PrismObj<VulkanQueueStore> queue) : CommandQueue(desc), device(device), queue(std::move(queue)) {}
 	void Submit(CommandList** lists, uint32_t count, Fence* fence = nullptr, uint64_t signalValue = 0) override;
 	void WaitIdle() override;
 
-	VkQueue GetQueue() const noexcept { return queue; }
-	void* GetNativePointer() const noexcept override { return queue; }
+	VkQueue GetQueue() const noexcept { return queue->queue; }
+	void* GetNativePointer() const noexcept override { return queue->queue; }
 	PrismDevice* GetDevice() const noexcept override;
 };
 
@@ -357,6 +358,8 @@ class VulkanCommandList : public CommandList
 		Buffer* indexBuffer = nullptr;
 		uint32_t indexOffset = 0;
 		Format indexFormat = Format::Unknown;
+
+		PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList;
 	};
 
 	VulkanDevice* device;
@@ -412,9 +415,20 @@ public:
 struct QueueFamilyIndices 
 {
 	static constexpr uint32_t InvalidIndex = static_cast<uint32_t>(-1);
-    uint32_t graphics = InvalidIndex;
-    uint32_t compute = InvalidIndex;
-    uint32_t transfer = InvalidIndex;
+	struct QueueFamilyIndex
+	{
+		uint32_t index = InvalidIndex;
+		uint32_t queueCount = 0;
+		VkQueueFlags flags = 0;
+		int32_t score = std::numeric_limits<int32_t>::min();
+		uint32_t selectedQueue = 0;
+
+		constexpr bool IsValid() const { return index != InvalidIndex; }
+		constexpr bool IsInvalid() const { return index == InvalidIndex; }
+	};
+	QueueFamilyIndex graphics = {};
+	QueueFamilyIndex compute = {};
+	QueueFamilyIndex transfer = {};
 };
 
 class VulkanDevice : public PrismDevice
@@ -422,27 +436,47 @@ class VulkanDevice : public PrismDevice
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
+    VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
+    DebugMessageCallback debugCallback = nullptr;
+    void* debugCallbackUserData = nullptr;
 	QueueFamilyIndices queueIndicies;
-    VkQueue graphicsQueue = VK_NULL_HANDLE;
-	VkQueue computeQueue = VK_NULL_HANDLE;
-	VkQueue transferQueue = VK_NULL_HANDLE;
+    PrismObj<VulkanQueueStore> graphicsQueue;
+	PrismObj<VulkanQueueStore> computeQueue;
+	PrismObj<VulkanQueueStore> transferQueue;
 	VkCommandPool commandPool = VK_NULL_HANDLE;
 	VmaAllocator allocator = VK_NULL_HANDLE;
 	VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 	PrismObj<VulkanCommandQueue> graphicsCommandQueue;
 
+	VkShaderModule clearUAVShaderModule = VK_NULL_HANDLE;
+	VkDescriptorSetLayout clearUAVDescriptorSetLayout = VK_NULL_HANDLE;
+	VkPipelineLayout clearUAVPipelineLayout = VK_NULL_HANDLE;
+	VkPipeline clearUAVPipeline = VK_NULL_HANDLE;
+
+	// A ring of pre-allocated descriptor sets, not one rewritten set: vkCmdBindDescriptorSets
+	// only records a reference, resolved against the set's contents at GPU-execute time, not
+	// at record time. Two ClearView(UAV) calls in the same unflushed command buffer would
+	// otherwise stomp each other's descriptor writes before either dispatch actually runs.
+	static constexpr uint32_t ClearUAVDescriptorSetCount = 32;
+	VkDescriptorSet clearUAVDescriptorSets[ClearUAVDescriptorSetCount] = {};
+	std::atomic<uint32_t> clearUAVDescriptorSetCursor{ 0 };
+
+	bool CreateClearUAVPipeline();
+	uptr<VulkanUploadQueue> uploadQueue;
+
     bool FindQueueFamily(QueueFamilyIndices& indices) const;
     bool CreateLogicalDevice();
 public:
-    VulkanDevice() = default;
+    VulkanDevice();
+    ~VulkanDevice();
     bool Initialize(const DeviceDesc& desc);
 	CommandQueue* GetCommandQueue(uint32_t index) override;
 	PrismObj<CommandAllocator> CreateCommandAllocator(const CommandAllocatorDesc& desc) override;
 	PrismObj<CommandList> CreateCommandList(const CommandListDesc& desc) override;
 	PrismObj<Buffer> CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData = nullptr) override;
-	PrismObj<Texture1D> CreateTexture1D(const Texture1DDesc& desc) override;
-	PrismObj<Texture2D> CreateTexture2D(const Texture2DDesc& desc) override;
-	PrismObj<Texture3D> CreateTexture3D(const Texture3DDesc& desc) override;
+	PrismObj<Texture1D> CreateTexture1D(const Texture1DDesc& desc, const SubresourceData* initialData = nullptr) override;
+	PrismObj<Texture2D> CreateTexture2D(const Texture2DDesc& desc, const SubresourceData* initialData = nullptr) override;
+	PrismObj<Texture3D> CreateTexture3D(const Texture3DDesc& desc, const SubresourceData* initialData = nullptr) override;
 	PrismObj<RenderTargetView> CreateRenderTargetView(Resource* resource, const RenderTargetViewDesc& desc) override;
 	PrismObj<ShaderResourceView> CreateShaderResourceView(Resource* resource, const ShaderResourceViewDesc& desc) override;
 	PrismObj<DepthStencilView> CreateDepthStencilView(Resource* resource, const DepthStencilViewDesc& desc) override;
@@ -460,11 +494,27 @@ public:
     const VkInstance& GetInstance() const { return instance; }
     const VkPhysicalDevice& GetPhysicalDevice() const { return physicalDevice; }
     const VkDevice& GetDevice() const { return device; }
+    DebugMessageCallback GetDebugCallback() const { return debugCallback; }
+    void* GetDebugCallbackUserData() const { return debugCallbackUserData; }
 	const VkAllocationCallbacks* GetAllocationCallbacks() const { return nullptr; }
 	const VkCommandPool& GetCommandPool() const { return commandPool; }
 	const VmaAllocator& GetAllocator() const { return allocator; }
 	const VkDescriptorPool& GetDescriptorPool() const { return descriptorPool; }
-	const VkQueue& GetGraphicsQueue() const { return graphicsQueue; }
+	VkPipelineLayout GetClearUAVPipelineLayout() const { return clearUAVPipelineLayout; }
+	VkPipeline GetClearUAVPipeline() const { return clearUAVPipeline; }
+
+	VkDescriptorSet GetNextClearUAVDescriptorSet()
+	{
+		uint32_t index = clearUAVDescriptorSetCursor.fetch_add(1, std::memory_order_relaxed) % ClearUAVDescriptorSetCount;
+		return clearUAVDescriptorSets[index];
+	}
+	const PrismObj<VulkanQueueStore>& GetGraphicsQueueStore() const { return graphicsQueue; }
+
+	// Aliases graphicsQueue (same VulkanQueueStore object, shared via refcounting) when the
+	// device has no separate transfer queue family - resolved once in CreateLogicalDevice().
+	const PrismObj<VulkanQueueStore>& GetTransferQueueStore() const { return transferQueue; }
+
+	VulkanUploadQueue* GetUploadQueue() const { return uploadQueue.get(); }
 };
 
 HEXA_PRISM_NAMESPACE_END

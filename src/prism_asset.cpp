@@ -5,37 +5,34 @@ HEXA_PRISM_NAMESPACE_BEGIN
 	namespace
 	{
 		AssetReadCallback g_assetReadCallback = nullptr;
-		void* g_assetReadCallbackUserData = nullptr;
+		AssetFreeCallback g_assetFreeCallback = nullptr;
+		void* g_assetCallbackUserData = nullptr;
 	}
 
-	void SetAssetReadCallback(AssetReadCallback callback, void* userData)
+	void SetAssetReadCallback(AssetReadCallback readCallback, AssetFreeCallback freeCallback, void* userData)
 	{
-		g_assetReadCallback = callback;
-		g_assetReadCallbackUserData = userData;
+		g_assetReadCallback = readCallback;
+		g_assetFreeCallback = freeCallback;
+		g_assetCallbackUserData = userData;
 	}
 
 	bool ReadAsset(const AssetPath& path, std::vector<uint8_t>& outData)
 	{
-		if (!g_assetReadCallback)
+		if (!g_assetReadCallback || !g_assetFreeCallback)
 		{
 			return false;
 		}
 
 		size_t size = 0;
-		uint8_t* data = g_assetReadCallback(path.raw.c_str(), &size, g_assetReadCallbackUserData);
+		uint8_t* data = g_assetReadCallback(path.raw.c_str(), &size, g_assetCallbackUserData);
 		if (!data)
 		{
 			return false;
 		}
 
 		outData.assign(data, data + size);
-		FreeAssetData(data);
+		g_assetFreeCallback(data, g_assetCallbackUserData);
 		return true;
-	}
-
-	void FreeAssetData(uint8_t* data)
-	{
-		PrismFree(data);
 	}
 
 HEXA_PRISM_NAMESPACE_END

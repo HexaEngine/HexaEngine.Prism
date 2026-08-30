@@ -15,6 +15,7 @@
 #include <array>
 #include <cstring>
 #include <unordered_set>
+#include "utils/fmutex.hpp"
 
 #define HEXA_PRISM_NAMESPACE HexaEngine::Prism
 #define HEXA_PRISM_NAMESPACE_BEGIN namespace HexaEngine { namespace Prism {

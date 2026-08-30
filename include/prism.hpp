@@ -823,12 +823,24 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		Debug = 1 << 16,
 	};
 
+	enum class DebugMessageSeverity : uint8_t
+	{
+		Verbose,
+		Info,
+		Warning,
+		Error,
+	};
+
+	using DebugMessageCallback = void(*)(DebugMessageSeverity severity, const char* message, void* userData);
+
 	struct DeviceDesc
 	{
 		BackendType type;
 		CommandQueueDesc* queues;
 		uint32_t queuesCount;
 		DeviceFlags flags;
+		DebugMessageCallback debugCallback = nullptr;
+		void* debugCallbackUserData = nullptr;
 	};
 
 	HEXA_PRISM_DEFINE_FLAG_OPERATORS(DeviceFlags);
@@ -841,9 +853,9 @@ HEXA_PRISM_NAMESPACE_BEGIN
 		virtual PrismObj<CommandAllocator> CreateCommandAllocator(const CommandAllocatorDesc& desc) = 0;
 		virtual PrismObj<CommandList> CreateCommandList(const CommandListDesc& desc) = 0;
 		virtual PrismObj<Buffer> CreateBuffer(const BufferDesc& desc, const SubresourceData* initialData = nullptr) = 0;
-		virtual PrismObj<Texture1D> CreateTexture1D(const Texture1DDesc& desc) = 0;
-		virtual PrismObj<Texture2D> CreateTexture2D(const Texture2DDesc& desc) = 0;
-		virtual PrismObj<Texture3D> CreateTexture3D(const Texture3DDesc& desc) = 0;
+		virtual PrismObj<Texture1D> CreateTexture1D(const Texture1DDesc& desc, const SubresourceData* initialData = nullptr) = 0;
+		virtual PrismObj<Texture2D> CreateTexture2D(const Texture2DDesc& desc, const SubresourceData* initialData = nullptr) = 0;
+		virtual PrismObj<Texture3D> CreateTexture3D(const Texture3DDesc& desc, const SubresourceData* initialData = nullptr) = 0;
 		virtual PrismObj<RenderTargetView> CreateRenderTargetView(Resource* resource, const RenderTargetViewDesc& desc) = 0;
 		virtual PrismObj<ShaderResourceView> CreateShaderResourceView(Resource* resource, const ShaderResourceViewDesc& desc) = 0;
 		virtual PrismObj<DepthStencilView> CreateDepthStencilView(Resource* resource, const DepthStencilViewDesc& desc) = 0;
