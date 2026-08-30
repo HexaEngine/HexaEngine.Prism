@@ -314,32 +314,32 @@ HEXA_PRISM_NAMESPACE_BEGIN
 
 	void VulkanUploadQueue::PollInFlight()
 	{
-		while (!inFlight.empty())
+		uint64_t count = inFlight.size();
+		size_t batch = 0;
+		for (size_t i = inFlight.size(); i-- > 0;)
 		{
-			uint64_t count = inFlight.size();
-			auto batch = 0;
-			for (size_t i = inFlight.size(); i-- > 0;)
+			uint64_t timeout = pollingRateMax / count;
+			InFlightTask& entry = inFlight[i];
+			if (vkWaitForFences(device->GetDevice(), 1, &entry.submission.fence, VK_TRUE, timeout) != VK_SUCCESS)
 			{
-				uint64_t timeout = pollingRateMax / count;
-				InFlightTask& entry = inFlight[i];
-				if (vkWaitForFences(device->GetDevice(), 1, &entry.submission.fence, VK_TRUE, timeout) != VK_SUCCESS)
-				{
-					continue;
-				}
-
-				ReturnStagingBuffers(stagingPool, entry.task);
-				if (WaitFlag* completionFlag = entry.task->completionFlag)
-				{
-					completionFlag->Signal();
-				}
-
-				ReleaseSubmission(entry.submission);
-
-				inFlight.erase(inFlight.begin() + static_cast<ptrdiff_t>(i));
-				++batch;
-				--count;
+				continue;
 			}
 
+			ReturnStagingBuffers(stagingPool, entry.task);
+			if (WaitFlag* completionFlag = entry.task->completionFlag)
+			{
+				completionFlag->Signal();
+			}
+
+			ReleaseSubmission(entry.submission);
+
+			inFlight.erase(inFlight.begin() + static_cast<ptrdiff_t>(i));
+			++batch;
+			--count;
+		}
+
+		if (batch > 0)
+		{
 			outstandingCount.fetch_sub(batch, std::memory_order_release);
 			outstandingCount.notify_all();
 		}
